@@ -1,0 +1,49 @@
+syntax = "proto3";
+package chemsi.vfep.v1;
+
+// Shared types for VFEP Unity integration.
+//
+// Versioning notes:
+// - Messages are suffixed V1 to allow additive V2 evolution.
+// - Never reuse field numbers; deprecate instead.
+
+message Vec3MM {
+  double x_mm = 1;
+  double y_mm = 2;
+  double z_mm = 3;
+}
+
+message Point2MM {
+  double x_mm = 1;
+  double y_mm = 2;
+}
+
+enum VFEPStatusV1 {
+  VFEP_STATUS_NORMAL = 0;
+  VFEP_STATUS_ARMED = 1;
+  VFEP_STATUS_MAINTENANCE = 2;
+  VFEP_STATUS_FAULT = 3;
+  VFEP_STATUS_OFFLINE = 4;
+}
+
+enum ArmStateV1 {
+  ARM_STATE_STOWED = 0;
+  ARM_STATE_MOVING = 1;
+  ARM_STATE_AIMING = 2;
+  ARM_STATE_FIRING = 3;
+  ARM_STATE_RETURNING = 4;
+  ARM_STATE_FAULT = 5;
+}
+
+enum IncidentStateV1 {
+  INCIDENT_NONE = 0;
+  INCIDENT_ACTIVE = 1;
+  INCIDENT_SUPPRESSING = 2;
+  INCIDENT_RESOLVED = 3;
+}
+
+enum AlertSeverityV1 {
+  ALERT_INFO = 0;
+  ALERT_WARNING = 1;
+  ALERT_CRITICAL = 2;
+}

@@ -1,0 +1,3 @@
+TestAtom 3 0.00681217
+NumericIntegrity 3 0.145492
+---

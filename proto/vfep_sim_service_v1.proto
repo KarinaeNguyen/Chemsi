@@ -1,0 +1,14 @@
+syntax = "proto3";
+package chemsi.vfep.v1;
+
+import "world_snapshot_v1.proto";
+import "telemetry_frame_v1.proto";
+import "command_v1.proto";
+
+message EmptyV1 {}
+
+service VFEPUnitySimServiceV1 {
+  rpc GetWorldSnapshot(EmptyV1) returns (WorldSnapshotV1);
+  rpc StreamTelemetry(EmptyV1) returns (stream TelemetryFrameV1);
+  rpc SendCommand(CommandV1) returns (CommandAckV1);
+}

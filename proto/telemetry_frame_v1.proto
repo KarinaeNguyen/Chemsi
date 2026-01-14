@@ -1,0 +1,93 @@
+syntax = "proto3";
+package chemsi.vfep.v1;
+
+import "vfep_types_v1.proto";
+
+message RackTelemetryV1 {
+  string rack_id = 1;
+  bool is_on_fire = 2;
+  double surface_temp_C = 3;
+  double risk_to_assets_pct = 4;
+}
+
+message TankTelemetryV1 {
+  string tank_id = 1;
+  double current_pressure_bar = 2;
+  double regulator_bar = 3;
+  double remaining_agent_mass_kg = 4;
+  double current_flow_kg_s = 5;
+  bool is_depleted = 6;
+  string valve_state = 7;
+}
+
+message ArmTelemetryV1 {
+  string arm_id = 1;
+  ArmStateV1 state = 2;
+  double s_0_1 = 3;
+  double v_s_0_1_per_s = 4;
+  double target_s_0_1 = 5;
+  bool has_target = 6;
+  bool interlock_active = 7;
+  string fault_code = 8;
+}
+
+message NozzleTelemetryV1 {
+  string nozzle_id = 1;
+  bool clogged = 2;
+  double pan_deg = 3;
+  double tilt_deg = 4;
+  double target_pan_deg = 5;
+  double target_tilt_deg = 6;
+  bool has_target = 7;
+}
+
+message InterlockStatusV1 {
+  string interlock_id = 1;
+  string vfep_id = 2;
+  bool allow_arm = 3;
+  bool allow_suppress = 4;
+  repeated string reasons = 5;
+  uint64 updated_ms = 6;
+}
+
+message IncidentV1 {
+  string incident_id = 1;
+  string room_id = 2;
+  string rack_id = 3;
+  IncidentStateV1 state = 4;
+  double started_at_s = 5;
+  double resolved_at_s = 6;
+  repeated string tags = 7;
+}
+
+message AlertV1 {
+  string alert_id = 1;
+  string room_id = 2;
+  string rack_id = 3;
+  AlertSeverityV1 severity = 4;
+  string code = 5;
+  string message = 6;
+  uint64 created_ms = 7;
+  bool acknowledged = 8;
+}
+
+message VFEPOrchestrationV1 {
+  string vfep_id = 1;
+  VFEPStatusV1 status = 2;
+  string selected_rack_id = 3;
+  int32 selected_hotspot_u = 4;
+  bool suppression_active = 5;
+}
+
+message TelemetryFrameV1 {
+  string schema_version = 1; // e.g., "1.0"
+  double sim_time_s = 2;
+  repeated RackTelemetryV1 racks = 3;
+  repeated TankTelemetryV1 tanks = 4;
+  repeated ArmTelemetryV1 arms = 5;
+  repeated NozzleTelemetryV1 nozzles = 6;
+  repeated InterlockStatusV1 interlocks = 7;
+  repeated IncidentV1 incidents = 8;
+  repeated AlertV1 alerts = 9;
+  repeated VFEPOrchestrationV1 vfeps = 10;
+}

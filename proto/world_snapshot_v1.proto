@@ -1,0 +1,80 @@
+syntax = "proto3";
+package chemsi.vfep.v1;
+
+import "vfep_types_v1.proto";
+
+message RoomV1 {
+  string room_id = 1;
+  string name = 2;
+  int32 floor_number = 3;
+  string security_level = 4;
+}
+
+message RackV1 {
+  string rack_id = 1;
+  string room_id = 2;
+  int32 row_index = 3;
+  int32 col_index = 4;
+  int32 height_u = 5;
+  Vec3MM position_mm = 6;
+}
+
+message RailV1 {
+  string rail_id = 1;
+  string vfep_id = 2;
+  string label = 3;
+  double mount_height_mm = 4;
+  repeated Point2MM points_xy_mm = 5;
+  repeated string related_rack_ids = 6;
+}
+
+message ArmV1 {
+  string arm_id = 1;
+  string vfep_id = 2;
+  string rail_id = 3;
+  double travel_s_min_0_1 = 4;
+  double travel_s_max_0_1 = 5;
+  double parking_s_0_1 = 6;
+  double max_v_s_0_1_per_s = 7;
+  double max_a_s_0_1_per_s2 = 8;
+}
+
+message NozzleV1 {
+  string nozzle_id = 1;
+  string arm_id = 2;
+  double pan_min_deg = 3;
+  double pan_max_deg = 4;
+  double tilt_min_deg = 5;
+  double tilt_max_deg = 6;
+  double flow_rate_kg_s = 7;
+}
+
+message TankV1 {
+  string tank_id = 1;
+  string vfep_id = 2;
+  string rail_id = 3;
+  double capacity_L = 4;
+  double initial_agent_mass_kg = 5;
+  double regulator_setpoint_bar = 6;
+}
+
+message VFEPSysV1 {
+  string vfep_id = 1;
+  string room_id = 2;
+  VFEPStatusV1 status = 3;
+  repeated string coverage_rack_ids = 4;
+  string mounting_type = 5;
+  string firmware_version = 6;
+}
+
+// Static snapshot used by Unity to spawn geometry/prefabs and build stable ID maps.
+message WorldSnapshotV1 {
+  string schema_version = 1; // e.g., "1.0"
+  repeated RoomV1 rooms = 2;
+  repeated RackV1 racks = 3;
+  repeated VFEPSysV1 vfeps = 4;
+  repeated RailV1 rails = 5;
+  repeated ArmV1 arms = 6;
+  repeated NozzleV1 nozzles = 7;
+  repeated TankV1 tanks = 8;
+}

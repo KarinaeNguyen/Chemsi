@@ -1,0 +1,56 @@
+syntax = "proto3";
+package chemsi.vfep.v1;
+
+message SetArmedV1 {
+  string vfep_id = 1;
+  bool armed = 2;
+}
+
+message SelectTargetV1 {
+  string vfep_id = 1;
+  string rack_id = 2;
+  int32 hotspot_u = 3;
+}
+
+message StartSuppressionV1 {
+  string vfep_id = 1;
+}
+
+message StopSuppressionV1 {
+  string vfep_id = 1;
+}
+
+message ManualAimV1 {
+  string nozzle_id = 1;
+  double pan_deg = 2;
+  double tilt_deg = 3;
+}
+
+message MoveArmV1 {
+  string arm_id = 1;
+  double target_s_0_1 = 2;
+}
+
+message ResetV1 {
+  string vfep_id = 1;
+}
+
+message CommandV1 {
+  string schema_version = 1; // "1.0"
+  uint64 client_timestamp_ms = 2;
+
+  oneof cmd {
+    SetArmedV1 set_armed = 10;
+    SelectTargetV1 select_target = 11;
+    StartSuppressionV1 start_suppression = 12;
+    StopSuppressionV1 stop_suppression = 13;
+    ManualAimV1 manual_aim = 14;
+    MoveArmV1 move_arm = 15;
+    ResetV1 reset = 16;
+  }
+}
+
+message CommandAckV1 {
+  bool ok = 1;
+  string message = 2;
+}

@@ -1,0 +1,23 @@
+VFEP Object Store (default 4x4)
+--------------------------------
+Rooms:            1
+Racks:            16
+VFEPS:            1
+Sensors:          2
+Rails:            1
+Tanks:            1
+Arms:             2
+Nozzles:          2
+Magazines:        2
+TriggerConfigs:   1
+ManualControls:   1
+VFE Round Types:  1
+Chemicals:        1
+Shells:           1
+Cameras:          3
+ArmViews:         2
+DataCenterViews:  1
+Maps:             1
+
+Validation: OK
+Issues: 0
