@@ -3,20 +3,15 @@
 #include <string>
 #include <cmath>
 #include <algorithm>
-#include <deque>
-#include <array>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdarg>
 
 #include "Simulation.h"
 
 #include "imgui.h"
+#include "implot.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-
-#include "Math3D.h"
-#include "OrbitCamera.h"
 
 // Platform GL headers: on Windows, <GL/gl.h> requires Windows types/macros (APIENTRY/WINGDIAPI).
 // Include <windows.h> first to avoid syntax errors in the Windows SDK gl.h.
@@ -53,7 +48,9 @@ static int fail(const char* msg) {
 // Adds Phase 1D: hit quality indicator (proxy from mdot + draft deflection + centering)
 // ============================================================
 
-// Vec3f + v3() are shared with OrbitCamera via Math3D.h
+struct Vec3f { float x, y, z; };
+
+static Vec3f v3(float x, float y, float z) { return {x,y,z}; }
 static Vec3f add(Vec3f a, Vec3f b) { return {a.x+b.x, a.y+b.y, a.z+b.z}; }
 static Vec3f sub(Vec3f a, Vec3f b) { return {a.x-b.x, a.y-b.y, a.z-b.z}; }
 static Vec3f mul(Vec3f a, float s)  { return {a.x*s, a.y*s, a.z*s}; }
@@ -314,6 +311,7 @@ int main() {
     std::fprintf(stderr, "OpenGL Version:  %s\n", gl_version);
 
     bool imgui_ctx = false;
+    bool implot_ctx = false;
     bool imgui_glfw = false;
     bool imgui_gl3 = false;
 
@@ -321,9 +319,13 @@ int main() {
     ImGui::CreateContext();
     imgui_ctx = true;
 
+    ImPlot::CreateContext();
+    implot_ctx = true;
+
     ImGui::StyleColorsDark();
 
     if (!ImGui_ImplGlfw_InitForOpenGL(window, true)) {
+        if (implot_ctx) ImPlot::DestroyContext();
         if (imgui_ctx) ImGui::DestroyContext();
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -333,6 +335,7 @@ int main() {
 
     if (!ImGui_ImplOpenGL3_Init(glsl_version)) {
         if (imgui_glfw) ImGui_ImplGlfw_Shutdown();
+        if (implot_ctx) ImPlot::DestroyContext();
         if (imgui_ctx) ImGui::DestroyContext();
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -344,15 +347,11 @@ int main() {
     bool running = false;
 
     // --- Phase-1 3D Twin camera (deterministic, ImGui-controlled) ---
-    OrbitCamera cam;
-    cam.yaw_deg   = 35.0f;
-    cam.pitch_deg = 20.0f;
-    cam.dist      = 8.0f;
-    cam.target    = v3(0.0f, 1.2f, 0.0f);
-// --- Rack color (smooth HRR-driven red ramp) ---
-float rack_red_t = 0.0f; // 0=dark rack, 1=full red
+    float cam_yaw_deg   = 35.0f;
+    float cam_pitch_deg = 20.0f;
+    float cam_dist      = 8.0f;
+    Vec3f cam_target    = v3(0.0f, 1.2f, 0.0f);
 
-    // OrbitCamera stores all orbit tuning + mouse state internally.
     // --- Phase-1 scene layout (meters, simple boxes) ---
     Vec3f warehouse_half = v3(6.0f, 3.0f, 6.0f);          // 12m x 6m x 12m volume
     Vec3f rack_center    = v3(0.0f, 1.0f, 0.0f);          // centered
@@ -392,112 +391,45 @@ float rack_red_t = 0.0f; // 0=dark rack, 1=full red
     int last_substeps = 0;
     bool dropped_accum = false;
 
+    // History buffers
+    std::vector<double> t_hist, T_hist, HRR_hist, O2_hist, EffExp_hist, KD_hist, KDTarget_hist;
+    t_hist.reserve(20000);
+    T_hist.reserve(20000);
+    HRR_hist.reserve(20000);
+    O2_hist.reserve(20000);
+    EffExp_hist.reserve(20000);
+    KD_hist.reserve(20000);
+    KDTarget_hist.reserve(20000);
 
-// ---------------- VFEP-Updated-Console-0.2 UI state ----------------
-struct UIEvent { double t_s; std::string text; };
+    constexpr size_t kMaxHistory = 200000;
+    constexpr size_t kTrimChunk  = 10000;
+    constexpr int kPlotWindowN   = 5000;
 
-struct UIState {
-    // Core controls
-    bool running = false;
-    double dt_s = 0.05;
+    auto trim_history_if_needed = [&]() {
+        if (t_hist.size() <= kMaxHistory) return;
+        const size_t drop = std::min(kTrimChunk, t_hist.size());
+        t_hist.erase(t_hist.begin(), t_hist.begin() + static_cast<std::ptrdiff_t>(drop));
+        T_hist.erase(T_hist.begin(), T_hist.begin() + static_cast<std::ptrdiff_t>(drop));
+        HRR_hist.erase(HRR_hist.begin(), HRR_hist.begin() + static_cast<std::ptrdiff_t>(drop));
+        O2_hist.erase(O2_hist.begin(), O2_hist.begin() + static_cast<std::ptrdiff_t>(drop));
+    };
 
-    bool step_requested = false;
-    bool ignite_requested = false;
-    bool suppress_requested = false;
-    bool reset_accumulator = false;
+    auto push_sample = [&](double t, const vfep::Observation& o) {
+        t_hist.push_back(t);
+        T_hist.push_back(o.T_K);
+        HRR_hist.push_back(o.HRR_W);
+        O2_hist.push_back(o.O2_volpct);
+        EffExp_hist.push_back(o.effective_exposure_kg);
+KD_hist.push_back(o.knockdown_0_1);
+double kd_t = 0.0;
+for (int i = 0; i < vfep::Observation::kNumSuppressionSectors; ++i) kd_t += o.sector_knockdown_target_0_1[i];
+kd_t /= (double)vfep::Observation::kNumSuppressionSectors;
+KDTarget_hist.push_back(kd_t);
+        trim_history_if_needed();
+    };
 
-    // Fonts (optional; nullptr => default font)
-    ImFont* font_base = nullptr;
-    ImFont* font_big  = nullptr;
-    ImFont* font_mono = nullptr;
-
-    // Trend history (last sample)
-    bool has_prev = false;
-    double prev_HRR_kW = 0.0;
-    double prev_T_C = 0.0;
-    double prev_agent_mdot = 0.0;
-
-    // Event log (ring buffer)
-    std::deque<UIEvent> events;
-    size_t events_cap = 200;
-
-    // Transition tracking for event generation
-    bool prev_concluded = false;
-    bool prev_dropped_accum = false;
-};
-
-UIState ui;
-ui.running = running;    // bind to existing sim loop var
-ui.dt_s    = dt;
-
-auto push_event = [&](double t_s, const char* fmt, ...) {
-    char buf[512];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-
-    ui.events.push_back(UIEvent{ t_s, std::string(buf) });
-    while (ui.events.size() > ui.events_cap) ui.events.pop_front();
-};
-
-enum class Trend { Down, Flat, Up };
-
-auto trend_of = [&](double curr, double prev, double rel_eps, double abs_eps) -> Trend {
-    const double eps = std::max(std::abs(curr) * rel_eps, abs_eps);
-    if (curr > prev + eps) return Trend::Up;
-    if (curr < prev - eps) return Trend::Down;
-    return Trend::Flat;
-};
-
-auto trend_glyph = [&](Trend t) -> const char* {
-    switch (t) {
-        case Trend::Up:   return "↑";
-        case Trend::Down: return "↓";
-        default:          return "→";
-    }
-};
-
-// Font + style (demo-ready). If custom font files are unavailable, ImGui will fall back safely.
-{
-    ImGuiIO& io = ImGui::GetIO();
-
-    // ---- Demo readability defaults (font-based scaling) ----
-    // Tuned so the console is readable from a distance on a typical 1080p/1440p projector.
-    constexpr float kFontBasePx = 30.0f;   // main UI text
-    constexpr float kFontBigPx  = 46.0f;   // headers / key metrics
-    constexpr float kFontMonoPx = 28.0f;   // console / numbers
-
-    // Try local assets first (recommended). If missing, fall back to Segoe UI (Windows).
-    ui.font_base = io.Fonts->AddFontFromFileTTF("assets/fonts/Inter-Regular.ttf",    kFontBasePx);
-    ui.font_big  = io.Fonts->AddFontFromFileTTF("assets/fonts/Inter-SemiBold.ttf",  kFontBigPx);
-    ui.font_mono = io.Fonts->AddFontFromFileTTF("assets/fonts/JetBrainsMono-Regular.ttf", kFontMonoPx);
-
-    // Windows fallback (Segoe UI)
-    if (!ui.font_base) ui.font_base = io.Fonts->AddFontFromFileTTF("C:\Windows\Fonts\segoeui.ttf",  kFontBasePx);
-    if (!ui.font_big)  ui.font_big  = io.Fonts->AddFontFromFileTTF("C:\Windows\Fonts\segoeuib.ttf", kFontBigPx);
-    if (!ui.font_mono) ui.font_mono = io.Fonts->AddFontFromFileTTF("C:\Windows\Fonts\consola.ttf",  kFontMonoPx);
-
-    // If everything failed, ImGui will still use its default font; keep running regardless.
-
-    ImGuiStyle& style = ImGui::GetStyle();
-
-    // Give the layout more breathing room at larger fonts.
-    style.WindowPadding     = ImVec2(18, 18);
-    style.FramePadding      = ImVec2(14, 10);
-    style.ItemSpacing       = ImVec2(14, 12);
-    style.ItemInnerSpacing  = ImVec2(10, 8);
-    style.IndentSpacing     = 18.0f;
-    style.ScrollbarSize     = 22.0f;
-    style.GrabMinSize       = 18.0f;
-
-    // Important: avoid global scaling (we want font-based scaling to preserve crispness).
-    // io.FontGlobalScale = 1.0f;
-}
-
-// -------------------------------------------------------------------
     vfep::Observation last_obs = sim.observe();
-    // VFEP-Updated-Console-0.2: no plot history (trends computed from last sample only)
+    push_sample(simTime, last_obs);
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -523,7 +455,7 @@ auto trend_glyph = [&](Trend t) -> const char* {
                 sim.step(dt);
                 simTime += dt;
                 last_obs = sim.observe();
-                // VFEP-Updated-Console-0.2: no plot history (trends computed from last sample only)
+                push_sample(simTime, last_obs);
                 accum_s -= dt;
                 ++substeps;
                 advanced_this_frame = true;
@@ -554,372 +486,422 @@ auto trend_glyph = [&](Trend t) -> const char* {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-
-    // --- Orbit camera controls (encapsulated), gated by ImGui capture ---
-    {
-        ImGuiIO& io = ImGui::GetIO();
-        cam.updateFromInput(window, io, wall_dt, rack_center, /*lock_target=*/true);
-    }
-
-}
-
-
         // Controls
+        ImGui::Begin("Controls");
 
-// ---------------- VFEP-Updated-Console-0.2: Single console dashboard ----------------
-auto hrr_kW = [&](const vfep::Observation& o) -> double { return 1e-3 * (double)o.effective_HRR_W; };
-auto temp_C = [&](const vfep::Observation& o) -> double { return (double)o.T_K - 273.15; };
-auto agent_mdot = [&](const vfep::Observation& o) -> double { return (double)o.agent_mdot_kgps; };
-
-ImGui::SetNextWindowSize(ImVec2(560, 920), ImGuiCond_FirstUseEver);
-ImGui::Begin("VFEP Console");
-
-// Header strip (time-centric "now")
-{
-    if (ui.font_big) ImGui::PushFont(ui.font_big);
-    ImGui::Text("t = %.2f s", simTime);
-    if (ui.font_big) ImGui::PopFont();
-
-    ImGui::SameLine();
-    ImGui::Dummy(ImVec2(18, 0));
-    ImGui::SameLine();
-
-    const bool concluded = sim.isConcluded();
-    const char* state_txt = concluded ? "CONCLUDED" : (running ? "RUNNING" : "PAUSED");
-    ImVec4 state_col = concluded ? ImVec4(0.70f, 0.70f, 0.70f, 1.0f)
-                                 : (running ? ImVec4(0.20f, 0.85f, 0.35f, 1.0f)
-                                            : ImVec4(0.95f, 0.80f, 0.20f, 1.0f));
-    ImGui::TextColored(state_col, "%s", state_txt);
-
-    ImGui::SameLine();
-    ImGui::Dummy(ImVec2(18, 0));
-    ImGui::SameLine();
-    ImGui::Text("dt=%.3f s", dt);
-
-    ImGui::SameLine();
-    ImGui::Dummy(ImVec2(12, 0));
-    ImGui::SameLine();
-    ImGui::Text("substeps=%d", last_substeps);
-
-    if (dropped_accum) {
+        if (ImGui::Button(running ? "Pause" : "Run")) running = !running;
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Realtime: DROPPED");
-    }
+
+        if (ImGui::Button("Step")) {
+            if (!sim.isConcluded()) {
+                sim.step(dt);
+                simTime += dt;
+                last_obs = sim.observe();
+                push_sample(simTime, last_obs);
+                accum_s = 0.0;
+                last_substeps = 1;
+                dropped_accum = false;
+            }
+        }
+
+        ImGui::Separator();
+
+        // --- Phase 3A scenario rig (deterministic, one-click replay) ---
+        static int scenario_idx = 0;
+        static int agent_idx = 0;
+        static bool calib_mode_ui = false;
+        static bool verify_mode_ui = false;
+        static int verify_test_idx = 0;
+        static bool last_verify_pass = false;
+        const char* scenario_names[] = {"Direct vs Glance", "Occlusion Wall", "Shielding Stack", "Mixed"};
+        ImGui::Text("Phase 3A Scenarios");
+        ImGui::Combo("Scenario", &scenario_idx, scenario_names, IM_ARRAYSIZE(scenario_names));
+const char* agent_names[] = {"Clean Agent", "Dry Chemical", "CO2-like"};
+ImGui::Separator();
+ImGui::Text("Phase 3B Agent");
+ImGui::Combo("Agent", &agent_idx, agent_names, IM_ARRAYSIZE(agent_names));
+
+if (ImGui::Checkbox("Calibration Mode", &calib_mode_ui)) {
+    sim.enableCalibrationMode(calib_mode_ui);
+    running = false;
+    simTime = 0.0;
+    accum_s = 0.0;
+    t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
+            EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
+    EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
+    last_obs = sim.observe();
+    push_sample(simTime, last_obs);
+    last_substeps = 0;
+    dropped_accum = false;
 }
 
 ImGui::Separator();
+ImGui::Text("Phase 3B.1 Verification Harness");
+if (ImGui::Checkbox("Verification Mode", &verify_mode_ui)) {
+    sim.enableVerificationMode(verify_mode_ui);
+    running = false;
+}
 
-if (ImGui::BeginTabBar("vfep_console_tabs"))
+const char* verify_names[] = {
+    "V0: Chemistry (DIRECT LoA)",
+    "V1: Geometry (BLOCKED LoA)",
+    "V2: Hysteresis (sweep crossings)"
+};
+ImGui::Combo("Test Vector", &verify_test_idx, verify_names, IM_ARRAYSIZE(verify_names));
+
+if (ImGui::Button("Run Verification Test")) {
+    last_verify_pass = sim.runVerificationTest((vfep::VerificationTestId)verify_test_idx);
+    running = false;
+    simTime = 0.0;
+    accum_s = 0.0;
+    t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
+    EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
+    last_obs = sim.observe();
+    push_sample(simTime, last_obs);
+    last_substeps = 0;
+    dropped_accum = false;
+}
+
 {
-    // ---------------- Control tab ----------------
-    if (ImGui::BeginTabItem("Control"))
-    {
-        // Controls: primary actions (no scrolling)
-        ImGui::TextDisabled("Controls");
-        {
-            const float btn_w = 140.0f;
-            if (ImGui::Button(running ? "Pause" : "Run", ImVec2(btn_w, 0))) {
-                running = !running;
-                ui.running = running;
-                push_event(simTime, running ? "Run" : "Pause");
-            }
-
-            ImGui::SameLine();
-            if (ImGui::Button("Step", ImVec2(btn_w, 0))) {
-                if (!sim.isConcluded()) {
-                    sim.step(dt);
-                    simTime += dt;
-                    last_obs = sim.observe();
-                    accum_s = 0.0;
-                    last_substeps = 1;
-                    dropped_accum = false;
-                    push_event(simTime, "Step");
-                }
-            }
-
-            ImGui::SameLine();
-            if (ImGui::Button("Ignite Fire", ImVec2(btn_w, 0))) {
-                if (!sim.isConcluded()) {
-                    sim.commandIgniteOrIncreasePyrolysis();
-                    push_event(simTime, "Ignite command issued");
-                }
-            }
-
-            if (ImGui::Button("Start Suppression", ImVec2(btn_w * 1.5f, 0))) {
-                if (!sim.isConcluded()) {
-                    sim.commandStartSuppression();
-                    push_event(simTime, "Suppression started");
-                }
-            }
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // dt control (core only)
-        ImGui::TextDisabled("Timestep");
-        {
-            float dt_f = (float)dt;
-            if (ImGui::SliderFloat("dt (s)", &dt_f, 0.005f, 0.200f, "%.3f")) {
-                dt = (double)dt_f;
-                ui.dt_s = dt;
-                accum_s = 0.0;
-                dropped_accum = false;
-                push_event(simTime, "dt set to %.3f s", dt);
-            }
-
-            ImGui::SameLine();
-            if (ImGui::Button("-")) {
-                dt = std::max(0.001, dt - 0.005);
-                ui.dt_s = dt;
-                accum_s = 0.0;
-                dropped_accum = false;
-                push_event(simTime, "dt set to %.3f s", dt);
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("+")) {
-                dt = std::min(1.0, dt + 0.005);
-                ui.dt_s = dt;
-                accum_s = 0.0;
-                dropped_accum = false;
-                push_event(simTime, "dt set to %.3f s", dt);
-            }
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Live telemetry (no plots): value + trend arrows
-        ImGui::TextDisabled("Live Telemetry");
-        {
-            const double curr_hrr = hrr_kW(last_obs);
-            const double curr_Tc  = temp_C(last_obs);
-            const double curr_mdot = agent_mdot(last_obs);
-
-            Trend th = Trend::Flat, tT = Trend::Flat, tm = Trend::Flat;
-            if (ui.has_prev) {
-                th = trend_of(curr_hrr, ui.prev_HRR_kW, 0.01, 0.05);   // 1% or 0.05 kW
-                tT = trend_of(curr_Tc,  ui.prev_T_C,   0.005, 0.02);  // 0.5% or 0.02 C
-                tm = trend_of(curr_mdot,ui.prev_agent_mdot, 0.02, 1e-4);
-            }
-
-            if (ImGui::BeginTable("telemetry", 3, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg))
-            {
-                ImGui::TableSetupColumn("Signal");
-                ImGui::TableSetupColumn("Value");
-                ImGui::TableSetupColumn("Trend");
-                ImGui::TableHeadersRow();
-
-                auto row = [&](const char* label, const char* fmt, double v, const char* trend) {
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(label);
-                    ImGui::TableSetColumnIndex(1); ImGui::Text(fmt, v);
-                    ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(trend);
-                };
-
-                row("HRR",      "%.1f kW", curr_hrr, ui.has_prev ? trend_glyph(th) : "—");
-                row("Temp",     "%.2f C",  curr_Tc,  ui.has_prev ? trend_glyph(tT) : "—");
-                row("Agent Flow","%.4f kg/s", curr_mdot, ui.has_prev ? trend_glyph(tm) : "—");
-
-                ImGui::EndTable();
-            }
-
-            // Update trend memory AFTER rendering using the current observation
-            ui.prev_HRR_kW = curr_hrr;
-            ui.prev_T_C = curr_Tc;
-            ui.prev_agent_mdot = curr_mdot;
-            ui.has_prev = true;
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        // Status / events: fixed-height log, minimal scrolling
-        ImGui::TextDisabled("Status & Events");
-        {
-            ImGui::BeginChild("events_child", ImVec2(0, 190), true, ImGuiWindowFlags_None);
-            if (ui.events.empty()) {
-                ImGui::TextDisabled("No events yet.");
-            } else {
-                // newest last (more natural reading)
-                for (const auto& e : ui.events) {
-                    ImGui::Text("[%.2fs] %s", e.t_s, e.text.c_str());
-                }
-                if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 5.0f) {
-                    ImGui::SetScrollHereY(1.0f);
-                }
-            }
-            ImGui::EndChild();
-        }
-
-        ImGui::EndTabItem();
+    const auto sig = sim.getRunSignatures();
+    const auto exp = sim.getLastExpectedSignatures();
+    ImGui::Text("Result: %s", last_verify_pass ? "PASS" : "FAIL");
+    ImGui::Text("Param hash:     0x%08X (exp 0x%08X)", sig.run_param_hash_u32, exp.run_param_hash_u32);
+    ImGui::Text("Telemetry CRC:  0x%08X (exp 0x%08X)", sig.telemetry_crc_u32, exp.telemetry_crc_u32);
+    ImGui::Text("State digest:   0x%08X (exp 0x%08X)", sig.state_digest_u32, exp.state_digest_u32);
+    const std::uint32_t events = sim.getLatestEvents();
+    if (events) {
+        ImGui::Text("Events/warnings: 0x%08X", events);
     }
+}
 
-    // ---------------- Physics & Chemistry tab ----------------
-    if (ImGui::BeginTabItem("Physics & Chemistry"))
-    {
-        ImGui::TextDisabled("Environment");
-        if (ImGui::BeginTable("env_tbl", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Temperature");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.2f K  (%.2f C)", (double)last_obs.T_K, temp_C(last_obs));
+// Telemetry preview (schema v1)
+{
+    static vfep::TelemetrySampleV1 samples[256];
+    const int n = sim.getTelemetrySamples(samples, 256);
+    if (n > 0) {
+        const auto& s = samples[n - 1];
+        ImGui::Text("Latest sample: t=%.2f s  raw=%.3f  net=%.3f  exp=%.3f  effExp=%.3f  KD=%.3f  HRR=%.1f kW",
+            s.t_s, s.raw_mdot_kgps, s.net_mdot_kgps, s.exposure_kg, s.effective_exposure_kg, s.KD_actual_0_1, s.HRR_kW);
 
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("O2");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.3f vol%%", (double)last_obs.O2_volpct);
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("CO2");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.3f vol%%", (double)last_obs.CO2_volpct);
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("H2O");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.3f vol%%", (double)last_obs.H2O_volpct);
-            ImGui::EndTable();
+        // Build compact arrays for plotting
+        static float y_exp[256];
+        static float y_effexp[256];
+        static float y_kd[256];
+        static float y_hrr[256];
+        for (int i = 0; i < n; ++i) {
+            y_exp[i] = samples[i].exposure_kg;
+            y_effexp[i] = samples[i].effective_exposure_kg;
+            y_kd[i] = samples[i].KD_actual_0_1;
+            y_hrr[i] = samples[i].HRR_kW;
         }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::TextDisabled("Fire / Suppression");
-        if (ImGui::BeginTable("fire_tbl", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("HRR (effective)");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.1f kW", hrr_kW(last_obs));
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Knockdown");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.3f", (double)last_obs.knockdown_0_1);
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Effective Exposure");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.4f kg", (double)last_obs.effective_exposure_kg);
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Regime");
-            ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(suppression_regime_text(last_obs.suppression_regime));
-            ImGui::EndTable();
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        ImGui::TextDisabled("Actuation / Delivery");
-        if (ImGui::BeginTable("act_tbl", 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Agent mdot");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.6f kg/s", (double)last_obs.agent_mdot_kgps);
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Net delivered mdot");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.6f kg/s", (double)last_obs.net_delivered_mdot_kgps);
-
-            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Draft vel (z)");
-            ImGui::TableSetColumnIndex(1); ImGui::Text("%.3f m/s", (double)last_obs.draft_vel_mps_z);
-            ImGui::EndTable();
-        }
-
-        ImGui::EndTabItem();
+        ImGui::PlotLines("Exposure (kg)", y_exp, n, 0, nullptr, 0.0f, 0.0f, ImVec2(0, 60));
+        ImGui::PlotLines("Effective Exposure (kg)", y_effexp, n, 0, nullptr, 0.0f, 0.0f, ImVec2(0, 60));
+        ImGui::PlotLines("KD (0..1)", y_kd, n, 0, nullptr, 0.0f, 1.0f, ImVec2(0, 60));
+        ImGui::PlotLines("HRR (kW)", y_hrr, n, 0, nullptr, 0.0f, 0.0f, ImVec2(0, 60));
     }
+}
 
-    // ---------------- Data tab ----------------
-    if (ImGui::BeginTabItem("Data"))
-    {
-        if (ui.font_mono) ImGui::PushFont(ui.font_mono);
+// Config export (read-only)
+{
+    static char cfg_buf[4096];
+    cfg_buf[0] = '\0';
+    sim.exportConfigText(cfg_buf, (int)sizeof(cfg_buf));
+    ImGui::InputTextMultiline("Config Export", cfg_buf, sizeof(cfg_buf), ImVec2(0, 140), ImGuiInputTextFlags_ReadOnly);
+}
 
-        ImGui::TextDisabled("Current Observation (selected fields)");
+// Apply agent change (deterministic)
+if (ImGui::Button("Apply Agent")) {
+    sim.setAgent((vfep::AgentType)agent_idx);
+    last_obs = sim.observe();
+}
 
-        if (ImGui::BeginTable("obs_tbl", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
-        {
-            ImGui::TableSetupColumn("Field");
-            ImGui::TableSetupColumn("Value");
-            ImGui::TableSetupColumn("Units");
+ImGui::Text("EC50 (kg): %.3f", (float)last_obs.agent_EC50_kg);
+ImGui::Text("Hill: %.3f", (float)last_obs.agent_hill);
+ImGui::Text("k_util (1/kg): %.3f", (float)last_obs.agent_k_util_1_per_kg);
+ImGui::Text("Potency: %.3f", (float)last_obs.agent_potency);
+
+ImGui::Text("Scenario factors (EC50 multipliers): T=%.2f  Vent=%.2f  Fuel=%.2f",
+    (float)last_obs.temp_factor, (float)last_obs.vent_factor, (float)last_obs.fuel_factor);
+
+ImGui::Text("Param hash (FNV-1a32): 0x%08X", last_obs.run_param_hash_u32);
+ImGui::Text("Telemetry CRC32:       0x%08X", last_obs.telemetry_crc_u32);
+
+        if (ImGui::Button("Load Scenario")) {
+            sim.resetToScenario((vfep::DemoScenario)scenario_idx, (vfep::AgentType)agent_idx);
+            running = false;
+            simTime = 0.0;
+            accum_s = 0.0;
+            t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
+            EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
+            last_obs = sim.observe();
+            push_sample(simTime, last_obs);
+            last_substeps = 0;
+            dropped_accum = false;
+
+            // Keep the schematic visualizer roughly aligned with scenario anchors.
+            nozzle_pos = v3(-2.0f, 1.5f, -2.0f);
+            nozzle_dir = v3(0.7f, -0.15f, 0.7f);
+        }
+
+        // Legacy reset retained
+        if (ImGui::Button("Reset Scenario (Legacy)")) {
+            sim.resetToDataCenterRackScenario();
+            running = false;
+            simTime = 0.0;
+            accum_s = 0.0;
+            t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
+            EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
+            last_obs = sim.observe();
+            push_sample(simTime, last_obs);
+            last_substeps = 0;
+            dropped_accum = false;
+        }
+
+        if (ImGui::Button("Ignite / Increase Pyrolysis")) {
+            if (!sim.isConcluded()) sim.commandIgniteOrIncreasePyrolysis();
+        }
+
+        if (ImGui::Button("Start Suppression")) {
+            if (!sim.isConcluded()) sim.commandStartSuppression();
+        }
+
+        ImGui::Separator();
+
+        float dt_ui = static_cast<float>(dt);
+        if (ImGui::SliderFloat("dt (s)", &dt_ui, 0.005f, 0.2f, "%.3f")) {
+            dt = static_cast<double>(dt_ui);
+            accum_s = 0.0;
+        }
+
+        ImGui::Text("Sim time: %.2f s", simTime);
+        ImGui::Text("Concluded: %s", sim.isConcluded() ? "yes" : "no");
+        ImGui::Text("Substeps last frame: %d", last_substeps);
+        ImGui::Text("Dropped accum: %s", dropped_accum ? "yes" : "no");
+
+        ImGui::Separator();
+        ImGui::Text("T:   %.2f K (%.2f C)", last_obs.T_K, last_obs.T_K - 273.15);
+        ImGui::Text("HRR (effective): %.2f W", last_obs.effective_HRR_W);
+        ImGui::Text("HRR (raw): %.2f W", last_obs.raw_HRR_W);
+        ImGui::Text("O2:  %.2f %%", last_obs.O2_volpct);
+        ImGui::Text("CO2: %.3f %%", last_obs.CO2_volpct);
+        ImGui::Text("Agent mdot: %.3f kg/s", last_obs.agent_mdot_kgps);
+        ImGui::Text("Delivered mdot: %.3f kg/s", last_obs.delivered_mdot_kgps);
+ImGui::Text("Net delivered mdot (geo): %.3f kg/s", last_obs.net_delivered_mdot_kgps);
+
+        ImGui::Separator();
+        ImGui::Text("Phase 3A Geometry Story");
+
+        auto headline_text = [](int s) -> const char* {
+            switch (s) {
+                case 0: return "DIRECT";
+                case 1: return "GLANCING";
+                case 2: return "BLOCKED";
+                case 3: return "SHIELDED";
+                default: return "UNKNOWN";
+            }
+        };
+
+        ImGui::Text("Headline: %s", headline_text(last_obs.headline_state));
+        ImGui::Text("Occ avg/max: %.2f / %.2f", last_obs.occ_avg_0_1, last_obs.occ_max_0_1);
+        ImGui::Text("LoA avg/min: %.2f / %.2f", last_obs.loa_avg_0_1, last_obs.loa_min_0_1);
+        ImGui::Text("Raw mdot (sum): %.3f   Net mdot (sum): %.3f", last_obs.sum_raw_mdot_kgps, last_obs.sum_net_mdot_kgps);
+        ImGui::Text("Sectors: Direct %d   Glancing %d   Blocked %d   Shielded %d",
+                    last_obs.direct_sector_count, last_obs.glancing_sector_count,
+                    last_obs.blocked_sector_count, last_obs.shielded_sector_count);
+
+        if (last_obs.warn_fully_blocked) {
+            ImGui::Text("WARNING: sustained fully blocked (>=0.5s)");
+        }
+        if (last_obs.warn_glancing_hold) {
+            ImGui::Text("WARNING: sustained glancing LoA (>=2s)");
+        }
+
+        static int sort_mode = 0;
+        const char* sort_modes[] = {"Lowest net mdot", "Highest occlusion", "Lowest LoA"};
+        ImGui::Combo("Sort sectors by", &sort_mode, sort_modes, IM_ARRAYSIZE(sort_modes));
+
+        std::vector<int> order(vfep::Observation::kNumSuppressionSectors);
+        for (int i = 0; i < (int)order.size(); ++i) order[i] = i;
+        std::sort(order.begin(), order.end(), [&](int a, int b) {
+            if (sort_mode == 1) {
+                return last_obs.sector_occlusion_0_1[a] > last_obs.sector_occlusion_0_1[b];
+            } else if (sort_mode == 2) {
+                return last_obs.sector_line_attack_0_1[a] < last_obs.sector_line_attack_0_1[b];
+            }
+            return last_obs.sector_net_delivered_mdot_kgps[a] < last_obs.sector_net_delivered_mdot_kgps[b];
+        });
+
+        if (ImGui::BeginTable("geo_tbl", 12, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+            ImGui::TableSetupColumn("Sector");
+            ImGui::TableSetupColumn("Occ");
+            ImGui::TableSetupColumn("Shield");
+            ImGui::TableSetupColumn("LoA");
+            ImGui::TableSetupColumn("Raw mdot");
+            ImGui::TableSetupColumn("Net mdot");
+            ImGui::TableSetupColumn("Exposure");
+            ImGui::TableSetupColumn("U");
+            ImGui::TableSetupColumn("Eff Exp");
+            ImGui::TableSetupColumn("EC50 adj");
+            ImGui::TableSetupColumn("KD targ");
+            ImGui::TableSetupColumn("KD");
             ImGui::TableHeadersRow();
 
-            auto row = [&](const char* k, double v, const char* units, const char* fmt) {
+            for (int idx : order) {
                 ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted(k);
-                ImGui::TableSetColumnIndex(1); ImGui::Text(fmt, v);
-                ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(units);
-            };
-
-            row("t", simTime, "s", "%.3f");
-            row("T_K", (double)last_obs.T_K, "K", "%.3f");
-            row("HRR_W (effective)", (double)last_obs.effective_HRR_W, "W", "%.1f");
-            row("O2", (double)last_obs.O2_volpct, "vol%", "%.4f");
-            row("CO2", (double)last_obs.CO2_volpct, "vol%", "%.4f");
-            row("H2O", (double)last_obs.H2O_volpct, "vol%", "%.4f");
-            row("agent_mdot", (double)last_obs.agent_mdot_kgps, "kg/s", "%.6f");
-            row("net_delivered_mdot", (double)last_obs.net_delivered_mdot_kgps, "kg/s", "%.6f");
-            row("effective_exposure", (double)last_obs.effective_exposure_kg, "kg", "%.6f");
-            row("knockdown", (double)last_obs.knockdown_0_1, "0..1", "%.6f");
-
+                ImGui::TableSetColumnIndex(0); ImGui::Text("%d", idx);
+                ImGui::TableSetColumnIndex(1); ImGui::Text("%.2f", last_obs.sector_occlusion_0_1[idx]);
+                ImGui::TableSetColumnIndex(2); ImGui::Text("%.2f", last_obs.sector_shield_0_1[idx]);
+                ImGui::TableSetColumnIndex(3); ImGui::Text("%.2f", last_obs.sector_line_attack_0_1[idx]);
+                ImGui::TableSetColumnIndex(4); ImGui::Text("%.3f", last_obs.sector_raw_delivered_mdot_kgps[idx]);
+                ImGui::TableSetColumnIndex(5); ImGui::Text("%.3f", last_obs.sector_net_delivered_mdot_kgps[idx]);
+ImGui::TableSetColumnIndex(6); ImGui::Text("%.3f", last_obs.sector_exposure_kg[idx]);
+ImGui::TableSetColumnIndex(7); ImGui::Text("%.2f", last_obs.sector_utilization_U_0_1[idx]);
+ImGui::TableSetColumnIndex(8); ImGui::Text("%.3f", last_obs.sector_effective_exposure_kg[idx]);
+ImGui::TableSetColumnIndex(9); ImGui::Text("%.3f", last_obs.sector_EC50_adj_kg[idx]);
+ImGui::TableSetColumnIndex(10); ImGui::Text("%.2f", last_obs.sector_knockdown_target_0_1[idx]);
+ImGui::TableSetColumnIndex(11); ImGui::Text("%.2f", last_obs.sector_knockdown_0_1[idx]);
+            }
             ImGui::EndTable();
         }
+        ImGui::Text("Exposure: %.3f kg", last_obs.exposure_kg);
+        ImGui::Text("Knockdown: %.1f %%", 100.0 * last_obs.knockdown_0_1);
+        ImGui::Text("Regime: %s", suppression_regime_text(last_obs.suppression_regime));
+        ImGui::Text("Effective HRR: %.2f W", last_obs.effective_HRR_W);
+        ImGui::Text("VFEP RPM (truth): %.0f", last_obs.vfep_rpm);
+        ImGui::Text("Hit efficiency (truth): %.3f", last_obs.hit_efficiency_0_1);
+        ImGui::Text("Jet momentum: %.2f N  Draft drag: %.2f N", last_obs.jet_momentum_N, last_obs.draft_drag_N);
 
-        ImGui::Spacing();
+        // Phase 2A truth efficiency (computed in sim)
+        const float eff = clampf((float)last_obs.hit_efficiency_0_1, 0.0f, 1.0f);
+
         ImGui::Separator();
-        ImGui::Spacing();
+        ImGui::Text("3D Twin (Phase 1)");
+        ImGui::SliderFloat("Cam Yaw (deg)", &cam_yaw_deg, -180.0f, 180.0f);
+        ImGui::SliderFloat("Cam Pitch (deg)", &cam_pitch_deg, -10.0f, 85.0f);
+        ImGui::SliderFloat("Cam Dist (m)", &cam_dist, 2.0f, 25.0f);
+        ImGui::DragFloat3("Cam Target", &cam_target.x, 0.05f);
 
-        // Optional: sector arrays (moved here to avoid density in the console)
-        if (ImGui::CollapsingHeader("Suppression sectors (arrays)", ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            constexpr int N = vfep::Observation::kNumSuppressionSectors;
-            if (ImGui::BeginTable("sector_tbl", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit))
-            {
-                ImGui::TableSetupColumn("i");
-                ImGui::TableSetupColumn("occ");
-                ImGui::TableSetupColumn("loa");
-                ImGui::TableSetupColumn("KD_target");
-                ImGui::TableHeadersRow();
+        ImGui::DragFloat3("Warehouse Half", &warehouse_half.x, 0.1f, 1.0f, 50.0f);
+        ImGui::DragFloat3("Rack Center", &rack_center.x, 0.05f);
+        ImGui::DragFloat3("Rack Half", &rack_half.x, 0.02f, 0.05f, 5.0f);
+        ImGui::DragFloat3("Fire Center", &fire_center.x, 0.05f);
 
-                for (int i = 0; i < N; ++i) {
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0); ImGui::Text("%d", i);
-                    ImGui::TableSetColumnIndex(1); ImGui::Text("%.3f", (double)last_obs.sector_occlusion_0_1[i]);
-                    ImGui::TableSetColumnIndex(2); ImGui::Text("%.3f", (double)last_obs.sector_line_attack_0_1[i]);
-                    ImGui::TableSetColumnIndex(3); ImGui::Text("%.3f", (double)last_obs.sector_knockdown_target_0_1[i]);
-                }
-                ImGui::EndTable();
+        ImGui::Separator();
+        ImGui::Text("VFEP Spray (A: proxy from mdot)");
+        ImGui::DragFloat3("Nozzle Pos", &nozzle_pos.x, 0.05f);
+        ImGui::DragFloat3("Nozzle Dir", &nozzle_dir.x, 0.02f);
+        if (ImGui::Button("Apply Nozzle Pose")) {
+            sim.setNozzlePose({(double)nozzle_pos.x, (double)nozzle_pos.y, (double)nozzle_pos.z},
+                             {(double)nozzle_dir.x, (double)nozzle_dir.y, (double)nozzle_dir.z});
+            // Force a refresh of telemetry on application.
+            last_obs = sim.observe();
+        }
+        ImGui::SameLine();
+        static bool sweep_enabled = false;
+        if (ImGui::Checkbox("Deterministic Sweep", &sweep_enabled)) {
+            sim.setNozzleSweepEnabled(sweep_enabled);
+        }
+        ImGui::DragFloat("mdot_ref (kg/s)", &mdot_ref, 0.005f, 0.01f, 2.0f, "%.3f");
+        ImGui::Text("eff (proxy) = %.2f", eff);
+
+// Phase 2A: Hit quality is computed in the sim (truth), and the spray direction is telemetry.
+const Vec3f eff_dir_ui = norm(v3((float)last_obs.spray_dir_unit_x,
+                                 (float)last_obs.spray_dir_unit_y,
+                                 (float)last_obs.spray_dir_unit_z));
+
+// Optional debug-only alignment indicator (not used in hit quality).
+const float hit_align = clampf(dot(norm(nozzle_dir), eff_dir_ui), 0.0f, 1.0f);
+
+float hit_center = 0.0f;
+float hit_quality = clampf((float)last_obs.hit_efficiency_0_1, 0.0f, 1.0f);
+
+if (last_obs.agent_mdot_kgps > 1e-6f) {
+    float t_hit_ui = 0.0f;
+    if (len(eff_dir_ui) > 1e-6f && ray_aabb_intersect(nozzle_pos, eff_dir_ui, rack_center, rack_half, t_hit_ui)) {
+        Vec3f hit = add(nozzle_pos, mul(eff_dir_ui, t_hit_ui));
+
+        const float nx = (rack_half.x > 1e-6f) ? (hit.x - rack_center.x) / rack_half.x : 0.0f;
+        const float ny = (rack_half.y > 1e-6f) ? (hit.y - rack_center.y) / rack_half.y : 0.0f;
+        const float nz = (rack_half.z > 1e-6f) ? (hit.z - rack_center.z) / rack_half.z : 0.0f;
+
+        const float ax = std::abs(nx), ay = std::abs(ny), az = std::abs(nz);
+
+        float u = 0.0f, v = 0.0f;
+        if (ax >= ay && ax >= az) { u = ny; v = nz; }
+        else if (ay >= ax && ay >= az) { u = nx; v = nz; }
+        else { u = nx; v = ny; }
+
+        const float dist = std::sqrt(u*u + v*v);
+        hit_center = clampf(1.0f - dist / 1.41421356f, 0.0f, 1.0f);
+    }
+}
+
+// hit_quality is truth telemetry; do not apply proxy modifiers.
+
+ImGui::ProgressBar(hit_quality, ImVec2(-1.0f, 0.0f), "Hit Quality (proxy)");
+ImGui::Text("Hit align: %.2f   Hit center: %.2f", hit_align, hit_center);
+
+        ImGui::DragFloat("Spray L0", &spray_L0, 0.02f, 0.0f, 10.0f);
+        ImGui::DragFloat("Spray L1", &spray_L1, 0.02f, 0.0f, 10.0f);
+        ImGui::DragFloat("Spray R0", &spray_R0, 0.01f, 0.0f, 2.0f);
+        ImGui::DragFloat("Spray R1", &spray_R1, 0.01f, 0.0f, 2.0f);
+
+        ImGui::Separator();
+        ImGui::Text("Hit Marker (Phase 1B)");
+        ImGui::DragFloat("Marker Base", &hit_marker_base, 0.005f, 0.0f, 1.0f);
+        ImGui::DragFloat("Marker Gain", &hit_marker_gain, 0.005f, 0.0f, 1.0f);
+
+        ImGui::Separator();
+        ImGui::Text("Cross-Draft");
+        ImGui::DragFloat3("Draft Vel (m/s)", &draft_vel_mps.x, 0.05f);
+        ImGui::DragFloat("Draft Arrow Scale", &draft_arrow_scale, 0.05f, 0.0f, 5.0f);
+        ImGui::DragFloat("Draft Deflect Gain", &draft_deflect_gain, 0.01f, 0.0f, 2.0f);
+
+        ImGui::End();
+
+        // Plots
+        ImGui::Begin("Plots");
+
+        const int N = static_cast<int>(t_hist.size());
+        const int start = (N > kPlotWindowN) ? (N - kPlotWindowN) : 0;
+        const int count = N - start;
+
+        if (count > 1) {
+            if (ImPlot::BeginPlot("Temperature (K)")) {
+                ImPlot::PlotLine("T_K", t_hist.data() + start, T_hist.data() + start, count);
+                ImPlot::EndPlot();
             }
+            if (ImPlot::BeginPlot("HRR (W)")) {
+                ImPlot::PlotLine("HRR_W", t_hist.data() + start, HRR_hist.data() + start, count);
+                ImPlot::EndPlot();
+            }
+if (ImPlot::BeginPlot("Effective Exposure (kg)")) {
+    ImPlot::PlotLine("EffExp_kg", t_hist.data() + start, EffExp_hist.data() + start, count);
+    ImPlot::EndPlot();
+}
+if (ImPlot::BeginPlot("Knockdown (0-1)")) {
+    ImPlot::PlotLine("KD", t_hist.data() + start, KD_hist.data() + start, count);
+    ImPlot::PlotLine("KD_target", t_hist.data() + start, KDTarget_hist.data() + start, count);
+    ImPlot::EndPlot();
+}
+
+if (ImPlot::BeginPlot("KD vs Effective Exposure")) {
+    ImPlot::PlotLine("KD(EffExp)", EffExp_hist.data() + start, KD_hist.data() + start, count);
+    ImPlot::EndPlot();
+}
+
+
+            if (ImPlot::BeginPlot("O2 (vol %)")) {
+                ImPlot::PlotLine("O2", t_hist.data() + start, O2_hist.data() + start, count);
+                ImPlot::EndPlot();
+            }
+        } else {
+            ImGui::TextUnformatted("No data yet.");
         }
 
-        if (ui.font_mono) ImGui::PopFont();
-        ImGui::EndTabItem();
-    }
+        ImGui::End();
 
-    ImGui::EndTabBar();
-}
-
-// VFEP-Updated-Console-0.2 event generation (automatic)
-{
-    const bool concluded = sim.isConcluded();
-    if (!ui.prev_concluded && concluded) {
-        push_event(simTime, "Simulation concluded");
-    }
-    ui.prev_concluded = concluded;
-
-    if (!ui.prev_dropped_accum && dropped_accum) {
-        push_event(simTime, "Realtime accumulator dropped (frame cap)");
-    }
-    ui.prev_dropped_accum = dropped_accum;
-
-    
-static bool prev_warn_fb = false;
-static bool prev_warn_gh = false;
-
-if (last_obs.warn_fully_blocked) {
-    if (!prev_warn_fb) push_event(simTime, "Warning: fully blocked sectors present");
-    prev_warn_fb = true;
-} else {
-    prev_warn_fb = false;
-}
-
-if (last_obs.warn_glancing_hold) {
-    if (!prev_warn_gh) push_event(simTime, "Warning: glancing hold sectors present");
-    prev_warn_gh = true;
-} else {
-    prev_warn_gh = false;
-}
-}
-
-ImGui::End();
-// -------------------------------------------------------------------
         ImGui::Render();
 
         int fb_w = 0, fb_h = 0;
@@ -932,52 +914,34 @@ ImGui::End();
             glDepthFunc(GL_LESS);
             glDisable(GL_CULL_FACE);
 
-            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+            glClearColor(0.06f, 0.06f, 0.07f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             const float aspect = (fb_h > 0) ? (float)fb_w / (float)fb_h : 1.0f;
             set_perspective(55.0f, aspect, 0.05f, 100.0f);
 
-            const Vec3f eye = cam.eye();
-            look_at(eye, cam.target, v3(0.0f, 1.0f, 0.0f));
+            const float yaw   = cam_yaw_deg   * 3.1415926535f / 180.0f;
+            const float pitch = cam_pitch_deg * 3.1415926535f / 180.0f;
+
+            Vec3f eye = v3(
+                cam_target.x + cam_dist * std::cos(pitch) * std::sin(yaw),
+                cam_target.y + cam_dist * std::sin(pitch),
+                cam_target.z + cam_dist * std::cos(pitch) * std::cos(yaw)
+            );
+            look_at(eye, cam_target, v3(0.0f, 1.0f, 0.0f));
 
             // Warehouse wireframe
-            glColor3f(0.35f, 0.35f, 0.35f);
+            glColor3f(0.25f, 0.25f, 0.28f);
             draw_wire_box(v3(0.0f, warehouse_half.y, 0.0f), warehouse_half);
 
-            // Rack (dark by default; smoothly turns red with HRR during fire)
-{
-    // Base rack color (near black, but not pure black for projector contrast)
-    const float base_r = 0.10f;
-    const float base_g = 0.10f;
-    const float base_b = 0.10f;
+            // Rack
+            const float rackTempC = (float)(last_obs.T_K - 273.15);
+            float rr, rg, rb;
+            temp_to_color(rackTempC, rr, rg, rb);
+            glColor3f(rr, rg, rb);
+            draw_solid_box(rack_center, rack_half);
 
-    // Target "fire red" color (demo-friendly, not neon)
-    const float fire_r = 0.88f;
-    const float fire_g = 0.08f;
-    const float fire_b = 0.08f;
-
-    // Normalize HRR into [0,1] intensity. Tune hrr_full_W to your typical demo range.
-    constexpr float hrr_full_W = 300000.0f; // 300 kW => full red (adjust if needed)
-    const float hrr_W = (float)last_obs.effective_HRR_W;
-    const float target_t = std::clamp(hrr_W / hrr_full_W, 0.0f, 1.0f);
-
-    // Smooth with an exponential low-pass to avoid flicker
-    // tau = response time in seconds (smaller = snappier, larger = smoother)
-    constexpr float tau_s = 0.45f;
-    const float dt_s = (float)wall_dt; // wall_dt already clamped earlier
-    const float alpha = 1.0f - std::exp(-dt_s / tau_s);
-
-    rack_red_t = rack_red_t + (target_t - rack_red_t) * alpha;
-
-    const float rr = base_r + (fire_r - base_r) * rack_red_t;
-    const float rg = base_g + (fire_g - base_g) * rack_red_t;
-    const float rb = base_b + (fire_b - base_b) * rack_red_t;
-
-    glColor3f(rr, rg, rb);
-    draw_solid_box(rack_center, rack_half);
-}
-glColor3f(0.05f, 0.05f, 0.05f);
+            glColor3f(0.05f, 0.05f, 0.05f);
             draw_wire_box(rack_center, rack_half);
 
             // Fire proxy (Phase 2B/2C): visualize effective HRR and spatial knockdown
@@ -1102,6 +1066,8 @@ if (last_obs.agent_mdot_kgps > 1e-6) {
 
         glfwSwapBuffers(window);
     }
+
+    if (implot_ctx) ImPlot::DestroyContext();
     if (imgui_gl3) ImGui_ImplOpenGL3_Shutdown();
     if (imgui_glfw) ImGui_ImplGlfw_Shutdown();
     if (imgui_ctx) ImGui::DestroyContext();
