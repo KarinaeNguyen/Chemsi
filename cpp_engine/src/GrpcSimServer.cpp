@@ -13,6 +13,8 @@
 #include <thread>
 #include <type_traits>
 #include <utility>
+#include <cctype>
+#include <string_view>
 
 #include "vfep_sim_service_v1.grpc.pb.h"
 
@@ -162,7 +164,23 @@ int get_row_index(const Rack& rack) {
     if constexpr (has_row_index<Rack>::value) {
         return static_cast<int>(rack.row_index);
     } else if constexpr (has_row<Rack>::value) {
-        return static_cast<int>(rack.row);
+        // rack.row is a std::string in our model (e.g. "A", "B", or "12").
+        // Convert it to an integer index.
+        if (rack.row.empty()) return 0;
+
+        // If it's a single letter like "A", map A->1, B->2, ...
+        if (rack.row.size() == 1 && std::isalpha(static_cast<unsigned char>(rack.row[0]))) {
+            char c = static_cast<char>(std::toupper(static_cast<unsigned char>(rack.row[0])));
+            if (c >= 'A' && c <= 'Z') return (c - 'A' + 1);
+            return 0;
+        }
+
+        // Otherwise try parsing as a number string (e.g. "12")
+        try {
+            return std::stoi(rack.row);
+        } catch (...) {
+            return 0;
+        }
     } else if constexpr (has_row_idx<Rack>::value) {
         return static_cast<int>(rack.row_idx);
     } else {
