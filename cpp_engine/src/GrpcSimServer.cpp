@@ -4,8 +4,15 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <iostream>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <type_traits>
+#include <utility>
 
 #include "vfep_sim_service_v1.grpc.pb.h"
 
@@ -65,6 +72,171 @@ static chemsi::vfep::v1::AlertSeverityV1 mapAlertSeverity(vfep::obj::AlertSeveri
     }
 }
 
+namespace detail {
+
+// C++17 detection idiom
+template <class...>
+using void_t = void;
+
+// ---- row_index variants ----
+template <class T, class = void>
+struct has_row_index : std::false_type {};
+template <class T>
+struct has_row_index<T, void_t<decltype(std::declval<const T&>().row_index)>> : std::true_type {};
+
+template <class T, class = void>
+struct has_row : std::false_type {};
+template <class T>
+struct has_row<T, void_t<decltype(std::declval<const T&>().row)>> : std::true_type {};
+
+template <class T, class = void>
+struct has_row_idx : std::false_type {};
+template <class T>
+struct has_row_idx<T, void_t<decltype(std::declval<const T&>().row_idx)>> : std::true_type {};
+
+// ---- col_index variants ----
+template <class T, class = void>
+struct has_col_index : std::false_type {};
+template <class T>
+struct has_col_index<T, void_t<decltype(std::declval<const T&>().col_index)>> : std::true_type {};
+
+template <class T, class = void>
+struct has_col : std::false_type {};
+template <class T>
+struct has_col<T, void_t<decltype(std::declval<const T&>().col)>> : std::true_type {};
+
+template <class T, class = void>
+struct has_col_idx : std::false_type {};
+template <class T>
+struct has_col_idx<T, void_t<decltype(std::declval<const T&>().col_idx)>> : std::true_type {};
+
+// ---- position variants ----
+template <class T, class = void>
+struct has_position_mm_xyz_mm : std::false_type {};
+template <class T>
+struct has_position_mm_xyz_mm<T, void_t<
+    decltype(std::declval<const T&>().position_mm.x_mm),
+    decltype(std::declval<const T&>().position_mm.y_mm),
+    decltype(std::declval<const T&>().position_mm.z_mm)
+>> : std::true_type {};
+
+template <class T, class = void>
+struct has_position_xyz_mm : std::false_type {};
+template <class T>
+struct has_position_xyz_mm<T, void_t<
+    decltype(std::declval<const T&>().position.x_mm),
+    decltype(std::declval<const T&>().position.y_mm),
+    decltype(std::declval<const T&>().position.z_mm)
+>> : std::true_type {};
+
+template <class T, class = void>
+struct has_pos_mm_xyz_mm : std::false_type {};
+template <class T>
+struct has_pos_mm_xyz_mm<T, void_t<
+    decltype(std::declval<const T&>().pos_mm.x_mm),
+    decltype(std::declval<const T&>().pos_mm.y_mm),
+    decltype(std::declval<const T&>().pos_mm.z_mm)
+>> : std::true_type {};
+
+// Fallback: plain x/y/z (assumed already in mm)
+template <class T, class = void>
+struct has_position_xyz : std::false_type {};
+template <class T>
+struct has_position_xyz<T, void_t<
+    decltype(std::declval<const T&>().position.x),
+    decltype(std::declval<const T&>().position.y),
+    decltype(std::declval<const T&>().position.z)
+>> : std::true_type {};
+
+template <class T, class = void>
+struct has_pos_xyz : std::false_type {};
+template <class T>
+struct has_pos_xyz<T, void_t<
+    decltype(std::declval<const T&>().pos.x),
+    decltype(std::declval<const T&>().pos.y),
+    decltype(std::declval<const T&>().pos.z)
+>> : std::true_type {};
+
+template <class Rack>
+int get_row_index(const Rack& rack) {
+    if constexpr (has_row_index<Rack>::value) {
+        return static_cast<int>(rack.row_index);
+    } else if constexpr (has_row<Rack>::value) {
+        return static_cast<int>(rack.row);
+    } else if constexpr (has_row_idx<Rack>::value) {
+        return static_cast<int>(rack.row_idx);
+    } else {
+        // Long-run safe default: keep schema stable even if model doesn't have rows.
+        return 0;
+    }
+}
+
+template <class Rack>
+int get_col_index(const Rack& rack) {
+    if constexpr (has_col_index<Rack>::value) {
+        return static_cast<int>(rack.col_index);
+    } else if constexpr (has_col<Rack>::value) {
+        return static_cast<int>(rack.col);
+    } else if constexpr (has_col_idx<Rack>::value) {
+        return static_cast<int>(rack.col_idx);
+    } else {
+        return 0;
+    }
+}
+
+template <class Rack>
+double get_x_mm(const Rack& rack) {
+    if constexpr (has_position_mm_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.position_mm.x_mm);
+    } else if constexpr (has_position_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.position.x_mm);
+    } else if constexpr (has_pos_mm_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.pos_mm.x_mm);
+    } else if constexpr (has_position_xyz<Rack>::value) {
+        return static_cast<double>(rack.position.x);
+    } else if constexpr (has_pos_xyz<Rack>::value) {
+        return static_cast<double>(rack.pos.x);
+    } else {
+        return 0.0;
+    }
+}
+
+template <class Rack>
+double get_y_mm(const Rack& rack) {
+    if constexpr (has_position_mm_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.position_mm.y_mm);
+    } else if constexpr (has_position_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.position.y_mm);
+    } else if constexpr (has_pos_mm_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.pos_mm.y_mm);
+    } else if constexpr (has_position_xyz<Rack>::value) {
+        return static_cast<double>(rack.position.y);
+    } else if constexpr (has_pos_xyz<Rack>::value) {
+        return static_cast<double>(rack.pos.y);
+    } else {
+        return 0.0;
+    }
+}
+
+template <class Rack>
+double get_z_mm(const Rack& rack) {
+    if constexpr (has_position_mm_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.position_mm.z_mm);
+    } else if constexpr (has_position_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.position.z_mm);
+    } else if constexpr (has_pos_mm_xyz_mm<Rack>::value) {
+        return static_cast<double>(rack.pos_mm.z_mm);
+    } else if constexpr (has_position_xyz<Rack>::value) {
+        return static_cast<double>(rack.position.z);
+    } else if constexpr (has_pos_xyz<Rack>::value) {
+        return static_cast<double>(rack.pos.z);
+    } else {
+        return 0.0;
+    }
+}
+
+} // namespace detail
+
 class ServiceImpl final : public VFEPUnitySimServiceV1::Service {
 public:
     ServiceImpl(vfep::obj::ObjectStore& store, std::mutex& mu, std::atomic<bool>& stop_flag, double& sim_time_s)
@@ -81,18 +253,24 @@ public:
             r->set_floor_number(room.floor_number);
             r->set_security_level(room.security_level);
         }
+
         for (const auto& [id, rack] : store_.racks) {
             auto* r = out->add_racks();
             r->set_rack_id(rack.rack_id);
             r->set_room_id(rack.room_id);
-            r->set_row_index(rack.row_index);
-            r->set_col_index(rack.col_index);
+
+            // Compatibility: older/newer RackConfig layouts
+            r->set_row_index(detail::get_row_index(rack));
+            r->set_col_index(detail::get_col_index(rack));
+
             r->set_height_u(rack.height_u);
+
             auto* p = r->mutable_position_mm();
-            p->set_x_mm(rack.position_mm.x_mm);
-            p->set_y_mm(rack.position_mm.y_mm);
-            p->set_z_mm(rack.position_mm.z_mm);
+            p->set_x_mm(detail::get_x_mm(rack));
+            p->set_y_mm(detail::get_y_mm(rack));
+            p->set_z_mm(detail::get_z_mm(rack));
         }
+
         for (const auto& [id, vfep] : store_.vfeps) {
             auto* v = out->add_vfeps();
             v->set_vfep_id(vfep.vfep_id);
@@ -102,6 +280,7 @@ public:
             v->set_firmware_version(vfep.firmware_version);
             for (const auto& rid : vfep.coverage_rack_ids) v->add_coverage_rack_ids(rid);
         }
+
         for (const auto& [id, rail] : store_.rails) {
             auto* r = out->add_rails();
             r->set_rail_id(rail.rail_id);
@@ -115,6 +294,7 @@ public:
             }
             for (const auto& rid : rail.related_rack_ids) r->add_related_rack_ids(rid);
         }
+
         for (const auto& [id, arm] : store_.arms) {
             auto* a = out->add_arms();
             a->set_arm_id(arm.arm_id);
@@ -126,6 +306,7 @@ public:
             a->set_max_v_s_0_1_per_s(arm.max_v_s_0_1_per_s);
             a->set_max_a_s_0_1_per_s2(arm.max_a_s_0_1_per_s2);
         }
+
         for (const auto& [id, noz] : store_.nozzles) {
             auto* n = out->add_nozzles();
             n->set_nozzle_id(noz.nozzle_id);
@@ -136,6 +317,7 @@ public:
             n->set_tilt_max_deg(noz.tilt_max_deg);
             n->set_flow_rate_kg_s(noz.flow_rate_kg_s);
         }
+
         for (const auto& [id, tank] : store_.tanks) {
             auto* t = out->add_tanks();
             t->set_tank_id(tank.tank_id);
@@ -348,10 +530,11 @@ struct GrpcSimServer::Impl {
     std::thread sim_thread;
 
     void simLoop(int tick_hz) {
-        const double dt = (tick_hz > 0) ? (1.0 / (double)tick_hz) : 0.05;
+        const double dt = (tick_hz > 0) ? (1.0 / static_cast<double>(tick_hz)) : 0.05;
         auto next = std::chrono::steady_clock::now();
         while (!stop_flag.load()) {
-            next += std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(dt));
+            next += std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<double>(dt));
             {
                 std::lock_guard<std::mutex> lk(mu);
                 vfep::mech::tick(store, sim_time_s, dt, params);
@@ -426,4 +609,4 @@ void GrpcSimServer::Stop() {}
 } // namespace grpcsim
 } // namespace vfep
 
-#endif
+#endif // CHEMSI_ENABLE_GRPC

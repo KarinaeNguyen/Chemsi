@@ -1,0 +1,925 @@
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/msys64/mingw64/bin/c++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Populating grpc
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: D:/Chemsi/build_msys/_deps/grpc-subbuild
+[1/9] Creating directories for 'grpc-populate'
+[1/9] Performing download step (git clone) for 'grpc-populate'
+Cloning into 'grpc-src'...
+HEAD is now at 96f984744f [Release] Bump version to 1.62.2 (on v1.62.x branch) (#36385)
+Submodule 'third_party/abseil-cpp' (https://github.com/abseil/abseil-cpp.git) registered for path 'third_party/abseil-cpp'
+Submodule 'third_party/benchmark' (https://github.com/google/benchmark) registered for path 'third_party/benchmark'
+Submodule 'third_party/bloaty' (https://github.com/google/bloaty.git) registered for path 'third_party/bloaty'
+Submodule 'third_party/boringssl-with-bazel' (https://github.com/google/boringssl.git) registered for path 'third_party/boringssl-with-bazel'
+Submodule 'third_party/cares/cares' (https://github.com/c-ares/c-ares.git) registered for path 'third_party/cares/cares'
+Submodule 'third_party/envoy-api' (https://github.com/envoyproxy/data-plane-api.git) registered for path 'third_party/envoy-api'
+Submodule 'third_party/googleapis' (https://github.com/googleapis/googleapis.git) registered for path 'third_party/googleapis'
+Submodule 'third_party/googletest' (https://github.com/google/googletest.git) registered for path 'third_party/googletest'
+Submodule 'third_party/opencensus-proto' (https://github.com/census-instrumentation/opencensus-proto.git) registered for path 'third_party/opencensus-proto'
+Submodule 'third_party/opentelemetry' (https://github.com/open-telemetry/opentelemetry-proto.git) registered for path 'third_party/opentelemetry'
+Submodule 'third_party/protobuf' (https://github.com/protocolbuffers/protobuf.git) registered for path 'third_party/protobuf'
+Submodule 'third_party/protoc-gen-validate' (https://github.com/envoyproxy/protoc-gen-validate.git) registered for path 'third_party/protoc-gen-validate'
+Submodule 'third_party/re2' (https://github.com/google/re2.git) registered for path 'third_party/re2'
+Submodule 'third_party/xds' (https://github.com/cncf/xds.git) registered for path 'third_party/xds'
+Submodule 'third_party/zlib' (https://github.com/madler/zlib) registered for path 'third_party/zlib'
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/abseil-cpp'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/benchmark'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/boringssl-with-bazel'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/cares/cares'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/envoy-api'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/googleapis'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/googletest'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/opencensus-proto'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/opentelemetry'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/protoc-gen-validate'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/re2'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/xds'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/zlib'...
+Submodule path 'third_party/abseil-cpp': checked out '4a2c63365eff8823a5221db86ef490e828306f9d'
+Submodule path 'third_party/benchmark': checked out '344117638c8ff7e239044fd0fa7085839fc03021'
+Submodule path 'third_party/bloaty': checked out '60209eb1ccc34d5deefb002d1b7f37545204f7f2'
+Submodule 'third_party/abseil-cpp' (https://github.com/abseil/abseil-cpp.git) registered for path 'third_party/bloaty/third_party/abseil-cpp'
+Submodule 'third_party/capstone' (https://github.com/aquynh/capstone.git) registered for path 'third_party/bloaty/third_party/capstone'
+Submodule 'third_party/demumble' (https://github.com/nico/demumble.git) registered for path 'third_party/bloaty/third_party/demumble'
+Submodule 'third_party/googletest' (https://github.com/google/googletest.git) registered for path 'third_party/bloaty/third_party/googletest'
+Submodule 'third_party/protobuf' (https://github.com/protocolbuffers/protobuf.git) registered for path 'third_party/bloaty/third_party/protobuf'
+Submodule 'third_party/re2' (https://github.com/google/re2) registered for path 'third_party/bloaty/third_party/re2'
+Submodule 'third_party/zlib' (https://github.com/madler/zlib) registered for path 'third_party/bloaty/third_party/zlib'
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/abseil-cpp'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/capstone'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/demumble'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/googletest'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/protobuf'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/re2'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/zlib'...
+Submodule path 'third_party/bloaty/third_party/abseil-cpp': checked out '5dd240724366295970c613ed23d0092bcf392f18'
+Submodule path 'third_party/bloaty/third_party/capstone': checked out '852f46a467cb37559a1f3a18bd45d5ca8c6fc5e7'
+Submodule path 'third_party/bloaty/third_party/demumble': checked out '01098eab821b33bd31b9778aea38565cd796aa85'
+Submodule path 'third_party/bloaty/third_party/googletest': checked out '565f1b848215b77c3732bca345fe76a0431d8b34'
+Submodule path 'third_party/bloaty/third_party/protobuf': checked out 'bc1773c42c9c3c522145a3119e989e0dff2a8d54'
+Submodule 'third_party/benchmark' (https://github.com/google/benchmark.git) registered for path 'third_party/bloaty/third_party/protobuf/third_party/benchmark'
+Submodule 'third_party/googletest' (https://github.com/google/googletest.git) registered for path 'third_party/bloaty/third_party/protobuf/third_party/googletest'
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/protobuf/third_party/benchmark'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/bloaty/third_party/protobuf/third_party/googletest'...
+Submodule path 'third_party/bloaty/third_party/protobuf/third_party/benchmark': checked out '5b7683f49e1e9223cf9927b24f6fd3d6bd82e3f8'
+Submodule path 'third_party/bloaty/third_party/protobuf/third_party/googletest': checked out '5ec7f0c4a113e2f18ac2c6cc7df51ad6afc24081'
+Submodule path 'third_party/bloaty/third_party/re2': checked out '5bd613749fd530b576b890283bfb6bc6ea6246cb'
+Submodule path 'third_party/bloaty/third_party/zlib': checked out 'cacf7f1d4e3d44d871b605da3b647f07d718623f'
+Submodule path 'third_party/boringssl-with-bazel': checked out 'ae72a4514c7afd150596b0a80947f3ca9b8363b5'
+Submodule path 'third_party/cares/cares': checked out '6360e96b5cf8e5980c887ce58ef727e53d77243a'
+Submodule path 'third_party/envoy-api': checked out '78f198cf96ecdc7120ef640406770aa01af775c4'
+Submodule path 'third_party/googleapis': checked out '2f9af297c84c55c8b871ba4495e01ade42476c92'
+Submodule path 'third_party/googletest': checked out '2dd1c131950043a8ad5ab0d2dda0e0970596586a'
+Submodule path 'third_party/opencensus-proto': checked out '4aa53e15cbf1a47bc9087e6cfdca214c1eea4e89'
+Submodule path 'third_party/opentelemetry': checked out '60fa8754d890b5c55949a8c68dcfd7ab5c2395df'
+Submodule path 'third_party/protobuf': checked out '7f94235e552599141950d7a4a3eaf93bc87d1b22'
+Submodule 'third_party/abseil-cpp' (https://github.com/abseil/abseil-cpp.git) registered for path 'third_party/protobuf/third_party/abseil-cpp'
+Submodule 'third_party/googletest' (https://github.com/google/googletest.git) registered for path 'third_party/protobuf/third_party/googletest'
+Submodule 'third_party/jsoncpp' (https://github.com/open-source-parsers/jsoncpp.git) registered for path 'third_party/protobuf/third_party/jsoncpp'
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/third_party/abseil-cpp'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/third_party/googletest'...
+Cloning into 'D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/third_party/jsoncpp'...
+Submodule path 'third_party/protobuf/third_party/abseil-cpp': checked out 'fb3621f4f897824c0dbe0615fa94543df6192f30'
+Submodule path 'third_party/protobuf/third_party/googletest': checked out '4c9a3bb62bf3ba1f1010bf96f9c8ed767b363774'
+Submodule path 'third_party/protobuf/third_party/jsoncpp': checked out '9059f5cad030ba11d37818847443a53918c327b1'
+Submodule path 'third_party/protoc-gen-validate': checked out 'fab737efbb4b4d03e7c771393708f75594b121e4'
+Submodule path 'third_party/re2': checked out '0c5616df9c0aaa44c9440d87422012423d91c7d1'
+Submodule path 'third_party/xds': checked out '3a472e524827f72d1ad621c4983dd5af54c46776'
+Submodule path 'third_party/zlib': checked out '09155eaa2f9270dc4ed1fa13e2b4b2613e6e4851'
+[2/9] Performing update step for 'grpc-populate'
+-- Already at requested tag: v1.62.2
+[3/9] No patch step for 'grpc-populate'
+[5/9] No configure step for 'grpc-populate'
+[6/9] No build step for 'grpc-populate'
+[7/9] No install step for 'grpc-populate'
+[8/9] No test step for 'grpc-populate'
+[9/9] Completed 'grpc-populate'
+-- The C compiler identification is GNU 15.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/msys64/mingw64/bin/cc.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+CMake Warning at D:/Chemsi/build_msys/_deps/grpc-src/third_party/abseil-cpp/CMakeLists.txt:82 (message):
+  A future Abseil release will default ABSL_PROPAGATE_CXX_STD to ON for CMake
+  3.8 and up.  We recommend enabling this option to ensure your project still
+  builds correctly.
+
+
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX17
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX17 - Success
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX20
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX20 - Failed
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+CMake Deprecation Warning at D:/Chemsi/build_msys/_deps/grpc-src/third_party/cares/cares/CMakeLists.txt:1 (CMAKE_MINIMUM_REQUIRED):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Looking for res_servicename
+-- Looking for res_servicename - not found
+-- Looking for res_servicename in resolv
+-- Looking for res_servicename in resolv - not found
+-- Looking for gethostbyname
+-- Looking for gethostbyname - not found
+-- Looking for gethostbyname in nsl
+-- Looking for gethostbyname in nsl - not found
+-- Looking for gethostbyname in socket
+-- Looking for gethostbyname in socket - not found
+-- Looking for gethostbyname in network
+-- Looking for gethostbyname in network - not found
+-- Looking for socket
+-- Looking for socket - not found
+-- Looking for socket in socket
+-- Looking for socket in socket - not found
+-- Looking for clock_gettime
+-- Looking for clock_gettime - found
+-- Looking for include file sys/types.h
+-- Looking for include file sys/types.h - found
+-- Looking for include file sys/socket.h
+-- Looking for include file sys/socket.h - not found
+-- Looking for include file sys/sockio.h
+-- Looking for include file sys/sockio.h - not found
+-- Looking for include file arpa/inet.h
+-- Looking for include file arpa/inet.h - not found
+-- Looking for include file arpa/nameser_compat.h
+-- Looking for include file arpa/nameser_compat.h - not found
+-- Looking for include file arpa/nameser.h
+-- Looking for include file arpa/nameser.h - not found
+-- Looking for include file assert.h
+-- Looking for include file assert.h - found
+-- Looking for include file errno.h
+-- Looking for include file errno.h - found
+-- Looking for include file fcntl.h
+-- Looking for include file fcntl.h - found
+-- Looking for include file inttypes.h
+-- Looking for include file inttypes.h - found
+-- Looking for include file limits.h
+-- Looking for include file limits.h - found
+-- Looking for include file malloc.h
+-- Looking for include file malloc.h - found
+-- Looking for include file memory.h
+-- Looking for include file memory.h - found
+-- Looking for include file netdb.h
+-- Looking for include file netdb.h - not found
+-- Looking for include file netinet/in.h
+-- Looking for include file netinet/in.h - not found
+-- Looking for include file net/if.h
+-- Looking for include file net/if.h - not found
+-- Looking for include file signal.h
+-- Looking for include file signal.h - found
+-- Looking for include file socket.h
+-- Looking for include file socket.h - not found
+-- Looking for include file stdbool.h
+-- Looking for include file stdbool.h - found
+-- Looking for include file stdint.h
+-- Looking for include file stdint.h - found
+-- Looking for include file stdlib.h
+-- Looking for include file stdlib.h - found
+-- Looking for include file strings.h
+-- Looking for include file strings.h - found
+-- Looking for include file string.h
+-- Looking for include file string.h - found
+-- Looking for include file stropts.h
+-- Looking for include file stropts.h - not found
+-- Looking for include file sys/ioctl.h
+-- Looking for include file sys/ioctl.h - not found
+-- Looking for include file sys/param.h
+-- Looking for include file sys/param.h - found
+-- Looking for include file sys/select.h
+-- Looking for include file sys/select.h - not found
+-- Looking for include file sys/stat.h
+-- Looking for include file sys/stat.h - found
+-- Looking for include file sys/time.h
+-- Looking for include file sys/time.h - found
+-- Looking for include file sys/uio.h
+-- Looking for include file sys/uio.h - not found
+-- Looking for include file time.h
+-- Looking for include file time.h - found
+-- Looking for include file dlfcn.h
+-- Looking for include file dlfcn.h - not found
+-- Looking for include file unistd.h
+-- Looking for include file unistd.h - found
+-- Looking for include files sys/types.h, netinet/tcp.h
+-- Looking for include files sys/types.h, netinet/tcp.h - not found
+-- Looking for include files winsock2.h, windows.h
+-- Looking for include files winsock2.h, windows.h - found
+-- Looking for 3 include files winsock2.h, ..., windows.h
+-- Looking for 3 include files winsock2.h, ..., windows.h - found
+-- Looking for include files winsock.h, windows.h
+-- Looking for include files winsock.h, windows.h - found
+-- Looking for include file windows.h
+-- Looking for include file windows.h - found
+-- Performing Test HAVE_SOCKLEN_T
+-- Performing Test HAVE_SOCKLEN_T - Success
+-- Performing Test HAVE_TYPE_SOCKET
+-- Performing Test HAVE_TYPE_SOCKET - Success
+-- Performing Test HAVE_BOOL_T
+-- Performing Test HAVE_BOOL_T - Success
+-- Performing Test HAVE_SSIZE_T
+-- Performing Test HAVE_SSIZE_T - Success
+-- Performing Test HAVE_LONGLONG
+-- Performing Test HAVE_LONGLONG - Success
+-- Performing Test HAVE_SIG_ATOMIC_T
+-- Performing Test HAVE_SIG_ATOMIC_T - Success
+-- Performing Test HAVE_STRUCT_ADDRINFO
+-- Performing Test HAVE_STRUCT_ADDRINFO - Success
+-- Performing Test HAVE_STRUCT_IN6_ADDR
+-- Performing Test HAVE_STRUCT_IN6_ADDR - Success
+-- Performing Test HAVE_STRUCT_SOCKADDR_IN6
+-- Performing Test HAVE_STRUCT_SOCKADDR_IN6 - Success
+-- Performing Test HAVE_STRUCT_SOCKADDR_STORAGE
+-- Performing Test HAVE_STRUCT_SOCKADDR_STORAGE - Success
+-- Performing Test HAVE_STRUCT_TIMEVAL
+-- Performing Test HAVE_STRUCT_TIMEVAL - Success
+-- Looking for AF_INET6
+-- Looking for AF_INET6 - found
+-- Looking for O_NONBLOCK
+-- Looking for O_NONBLOCK - not found
+-- Looking for FIONBIO
+-- Looking for FIONBIO - found
+-- Looking for SIOCGIFADDR
+-- Looking for SIOCGIFADDR - not found
+-- Looking for MSG_NOSIGNAL
+-- Looking for MSG_NOSIGNAL - not found
+-- Looking for PF_INET6
+-- Looking for PF_INET6 - found
+-- Looking for SO_NONBLOCK
+-- Looking for SO_NONBLOCK - not found
+-- Looking for CLOCK_MONOTONIC
+-- Looking for CLOCK_MONOTONIC - found
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID - Success
+-- Performing Test HAVE_LL
+-- Performing Test HAVE_LL - Success
+-- Looking for bitncmp
+-- Looking for bitncmp - not found
+-- Looking for closesocket
+-- Looking for closesocket - found
+-- Looking for CloseSocket
+-- Looking for CloseSocket - not found
+-- Looking for connect
+-- Looking for connect - found
+-- Looking for fcntl
+-- Looking for fcntl - not found
+-- Looking for freeaddrinfo
+-- Looking for freeaddrinfo - found
+-- Looking for getaddrinfo
+-- Looking for getaddrinfo - found
+-- Looking for getenv
+-- Looking for getenv - found
+-- Looking for gethostbyaddr
+-- Looking for gethostbyaddr - found
+-- Looking for gethostbyname
+-- Looking for gethostbyname - found
+-- Looking for gethostname
+-- Looking for gethostname - found
+-- Looking for getnameinfo
+-- Looking for getnameinfo - found
+-- Looking for getservbyport_r
+-- Looking for getservbyport_r - not found
+-- Looking for getservbyname_r
+-- Looking for getservbyname_r - not found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for if_indextoname
+-- Looking for if_indextoname - not found
+-- Looking for inet_net_pton
+-- Looking for inet_net_pton - not found
+-- Looking for ioctl
+-- Looking for ioctl - not found
+-- Looking for ioctlsocket
+-- Looking for ioctlsocket - found
+-- Looking for IoctlSocket
+-- Looking for IoctlSocket - not found
+-- Looking for recv
+-- Looking for recv - found
+-- Looking for recvfrom
+-- Looking for recvfrom - found
+-- Looking for send
+-- Looking for send - found
+-- Looking for setsockopt
+-- Looking for setsockopt - found
+-- Looking for socket
+-- Looking for socket - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for strcmpi
+-- Looking for strcmpi - found
+-- Looking for strdup
+-- Looking for strdup - found
+-- Looking for stricmp
+-- Looking for stricmp - found
+-- Looking for strncasecmp
+-- Looking for strncasecmp - found
+-- Looking for strncmpi
+-- Looking for strncmpi - not found
+-- Looking for strnicmp
+-- Looking for strnicmp - found
+-- Looking for writev
+-- Looking for writev - not found
+-- Looking for arc4random_buf
+-- Looking for arc4random_buf - not found
+-- Looking for __system_property_get
+-- Looking for __system_property_get - not found
+CMake Deprecation Warning at D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:7 (cmake_policy):
+  The OLD behavior for policy CMP0141 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- 
+-- 25.1.0
+-- Performing Test protobuf_HAVE_LD_VERSION_SCRIPT
+-- Performing Test protobuf_HAVE_LD_VERSION_SCRIPT - Success
+-- Performing Test protobuf_HAVE_BUILTIN_ATOMICS
+-- Performing Test protobuf_HAVE_BUILTIN_ATOMICS - Success
+CMake Deprecation Warning at D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/third_party/utf8_range/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+CMake Deprecation Warning at D:/Chemsi/build_msys/_deps/grpc-src/third_party/re2/CMakeLists.txt:6 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- The ASM_NASM compiler identification is NASM
+-- Found assembler: C:/msys64/mingw64/bin/nasm.exe
+-- Looking for stddef.h
+-- Looking for stddef.h - found
+-- Check size of off64_t
+-- Check size of off64_t - done
+-- Looking for fseeko
+-- Looking for fseeko - found
+-- Looking for unistd.h
+-- Looking for unistd.h - found
+-- Renaming
+--     D:/Chemsi/build_msys/_deps/grpc-src/third_party/zlib/zconf.h
+-- to 'zconf.h.included' because this file is included with zlib
+-- but CMake generates it automatically in the build directory.
+-- Configuring done (459.8s)
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_absl_check" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_absl_log" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_algorithm" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_base" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_bind_front" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_bits" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_btree" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_cleanup" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_cord" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_core_headers" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_debugging" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_die_if_null" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_dynamic_annotations" that is not in any export
+  set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_flags" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_flat_hash_map" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_flat_hash_set" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_function_ref" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_hash" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_layout" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_log_initialize" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_log_severity" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_memory" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_node_hash_map" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_node_hash_set" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_optional" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_span" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_status" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_statusor" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_strings" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_synchronization" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_time" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_type_traits" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_utility" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf-lite"
+  which requires target "absl_variant" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_absl_check" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_absl_log" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_algorithm" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_base" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_bind_front" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_bits" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_btree" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_cleanup" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_cord" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_core_headers" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_debugging" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_die_if_null" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_dynamic_annotations" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_flags" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_flat_hash_map" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_flat_hash_set" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_function_ref" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_hash" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_layout" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_log_initialize" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_log_severity" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_memory" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_node_hash_map" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_node_hash_set" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_optional" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_span" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_status" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_statusor" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_strings" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_synchronization" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_time" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_type_traits" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_utility" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotobuf" which
+  requires target "absl_variant" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_absl_check" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_absl_log" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_algorithm" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_base" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_bind_front" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_bits" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_btree" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_cleanup" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_cord" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_core_headers" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_debugging" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_die_if_null" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_dynamic_annotations" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_flags" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_flat_hash_map" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_flat_hash_set" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_function_ref" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_hash" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_layout" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_log_initialize" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_log_severity" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_memory" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_node_hash_map" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_node_hash_set" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_optional" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_span" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_status" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_statusor" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_strings" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_synchronization" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_time" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_type_traits" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_utility" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/CMakeLists.txt:
+  install(EXPORT "protobuf-targets" ...) includes target "libprotoc" which
+  requires target "absl_variant" that is not in any export set.
+
+
+CMake Error in D:/Chemsi/build_msys/_deps/grpc-src/third_party/protobuf/third_party/utf8_range/CMakeLists.txt:
+  install(EXPORT "utf8_range-targets" ...) includes target "utf8_validity"
+  which requires target "absl_strings" that is not in any export set.
+
+
+CMake Error at CMakeLists.txt:98 (target_link_libraries):
+  Target "chemsi_grpc_proto" links to:
+
+    gRPC::grpc++
+
+  but the target was not found.  Possible reasons include:
+
+    * There is a typo in the target name.
+    * A find_package call is missing for an IMPORTED target.
+    * An ALIAS target is missing.
+
+
+
+-- Generating done (1.9s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    Protobuf_DIR
+    absl_DIR
+    gRPC_DIR
+
+
+CMake Generate step failed.  Build files cannot be regenerated correctly.
