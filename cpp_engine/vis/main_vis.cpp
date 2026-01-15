@@ -12,6 +12,7 @@
 #include "implot.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "imgui_internal.h"  // for DockBuilder (auto-layout). Optional but recommended.
 
 // Platform GL headers: on Windows, <GL/gl.h> requires Windows types/macros (APIENTRY/WINGDIAPI).
 // Include <windows.h> first to avoid syntax errors in the Windows SDK gl.h.
@@ -318,6 +319,10 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     imgui_ctx = true;
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // <--- enables docking panels
+    // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable; // optional: separate OS windows (leave OFF for now)
 
     ImPlot::CreateContext();
     implot_ctx = true;
