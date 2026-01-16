@@ -1,5 +1,8 @@
 // main_vis.cpp (updated UI + HUD + visualization toggles)
-// Compatible with existing Simulation.h interface (no changes required).
+// NOTE: Updated to keep fire_center locked to simulation truth via refresh_obs().
+//       All assignment-style `last_obs = sim.observe();` sites now use refresh_obs().
+//
+// Compatible with Simulation.h interface (uses hotspot_pos_m_* fields added to Observation).
 
 #include <vector>
 #include <string>
@@ -54,7 +57,6 @@ static int fail(const char* msg) {
 // ============================================================
 // Minimal Phase-1 3D Twin (fixed-pipeline, deterministic, no assets)
 // Adds: HUD overlay + visualization toggles + docking
-// Keeps Simulation.h interface unchanged.
 // ============================================================
 
 struct Vec3f { float x, y, z; };
@@ -344,9 +346,9 @@ int main(int argc, char** argv) {
     imgui_ctx = true;
 
     ImGuiIO& io = ImGui::GetIO();
-    #ifndef VFEP_NO_IMGUI_DOCKING
+#ifndef VFEP_NO_IMGUI_DOCKING
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    #endif
+#endif
 
     ImPlot::CreateContext();
     implot_ctx = true;
@@ -474,6 +476,19 @@ int main(int argc, char** argv) {
     vfep::Observation last_obs = sim.observe();
     push_sample(simTime, last_obs);
 
+    // Keep UI fire marker locked to simulation truth.
+    fire_center = v3((float)last_obs.hotspot_pos_m_x,
+                     (float)last_obs.hotspot_pos_m_y,
+                     (float)last_obs.hotspot_pos_m_z);
+
+    // One canonical refresh point so we cannot miss an update site.
+    auto refresh_obs = [&]() {
+        last_obs = sim.observe();
+        fire_center = v3((float)last_obs.hotspot_pos_m_x,
+                         (float)last_obs.hotspot_pos_m_y,
+                         (float)last_obs.hotspot_pos_m_z);
+    };
+
     // --- Auto-start calibration mode (deterministic) if requested ---
     if (start_calib) {
         sim.enableCalibrationMode(true);
@@ -483,7 +498,7 @@ int main(int argc, char** argv) {
         t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
         EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
 
-        last_obs = sim.observe();
+        refresh_obs();
         push_sample(simTime, last_obs);
         last_substeps = 0;
         dropped_accum = false;
@@ -512,7 +527,7 @@ int main(int argc, char** argv) {
             while (accum_s >= dt && substeps < kMaxSubstepsPerFrame && !sim.isConcluded()) {
                 sim.step(dt);
                 simTime += dt;
-                last_obs = sim.observe();
+                refresh_obs();
                 push_sample(simTime, last_obs);
                 accum_s -= dt;
                 ++substeps;
@@ -531,7 +546,7 @@ int main(int argc, char** argv) {
         }
 
         if (!advanced_this_frame) {
-            last_obs = sim.observe();
+            refresh_obs();
         }
 
         draft_vel_mps = v3((float)last_obs.draft_vel_mps_x,
@@ -543,10 +558,9 @@ int main(int argc, char** argv) {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        #ifndef VFEP_NO_IMGUI_DOCKING
+#ifndef VFEP_NO_IMGUI_DOCKING
         ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
-        #endif
-
+#endif
 
         // HUD overlay
         if (ui.show_hud) {
@@ -592,7 +606,7 @@ int main(int argc, char** argv) {
                 if (!sim.isConcluded()) {
                     sim.step(dt);
                     simTime += dt;
-                    last_obs = sim.observe();
+                    refresh_obs();
                     push_sample(simTime, last_obs);
                     accum_s = 0.0;
                     last_substeps = 1;
@@ -627,7 +641,7 @@ int main(int argc, char** argv) {
                 t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
                 EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
 
-                last_obs = sim.observe();
+                refresh_obs();
                 push_sample(simTime, last_obs);
                 last_substeps = 0;
                 dropped_accum = false;
@@ -656,7 +670,7 @@ int main(int argc, char** argv) {
                 t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
                 EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
 
-                last_obs = sim.observe();
+                refresh_obs();
                 push_sample(simTime, last_obs);
                 last_substeps = 0;
                 dropped_accum = false;
@@ -683,7 +697,7 @@ int main(int argc, char** argv) {
 
             if (ImGui::Button("Apply Agent")) {
                 sim.setAgent((vfep::AgentType)agent_idx);
-                last_obs = sim.observe();
+                refresh_obs();
             }
 
             ImGui::Text("Regime: %s", suppression_regime_text(last_obs.suppression_regime));
@@ -699,7 +713,7 @@ int main(int argc, char** argv) {
                 t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
                 EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
 
-                last_obs = sim.observe();
+                refresh_obs();
                 push_sample(simTime, last_obs);
 
                 last_substeps = 0;
@@ -718,7 +732,7 @@ int main(int argc, char** argv) {
                 t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
                 EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
 
-                last_obs = sim.observe();
+                refresh_obs();
                 push_sample(simTime, last_obs);
 
                 last_substeps = 0;
@@ -754,7 +768,9 @@ int main(int argc, char** argv) {
             ImGui::DragFloat3("Warehouse Half", &warehouse_half.x, 0.1f, 1.0f, 50.0f);
             ImGui::DragFloat3("Rack Center", &rack_center.x, 0.05f);
             ImGui::DragFloat3("Rack Half", &rack_half.x, 0.02f, 0.05f, 5.0f);
-            ImGui::DragFloat3("Fire Center", &fire_center.x, 0.05f);
+
+            // NOTE: fire_center is now sim-truth; dragging here will be overwritten on next refresh_obs().
+            ImGui::DragFloat3("Fire Center (truth)", &fire_center.x, 0.05f);
 
             ImGui::Separator();
             ImGui::Text("Spray / Nozzle");
@@ -764,7 +780,7 @@ int main(int argc, char** argv) {
             if (ImGui::Button("Apply Nozzle Pose")) {
                 sim.setNozzlePose({(double)nozzle_pos.x, (double)nozzle_pos.y, (double)nozzle_pos.z},
                                   {(double)nozzle_dir.x, (double)nozzle_dir.y, (double)nozzle_dir.z});
-                last_obs = sim.observe();
+                refresh_obs();
             }
 
             ImGui::DragFloat("Spray L0", &spray_L0, 0.02f, 0.0f, 10.0f);

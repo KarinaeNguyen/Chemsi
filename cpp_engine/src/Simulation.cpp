@@ -16,6 +16,19 @@ namespace vfep {
 
 namespace {
 
+static std::uint32_t xorshift32(std::uint32_t& s) {
+    // Deterministic, fast, portable.
+    s ^= (s << 13);
+    s ^= (s >> 17);
+    s ^= (s << 5);
+    return s;
+}
+
+static double u01(std::uint32_t& s) {
+    // [0,1)
+    return (double)xorshift32(s) / 4294967296.0; // 2^32
+}
+
 // --------------------
 // Tunable constants
 // --------------------
@@ -485,12 +498,13 @@ void Simulation::resetToDataCenterRackScenario() {
     // (Will be normalized implicitly by aero module.)
     nozzle_dir_unit_scenario_ = {0.7, -0.15, 0.7};
     nozzle_pos_m_ = {-2.0, 1.5, -2.0};
+    hotspot_pos_m_ = {0.0, 0.6, 0.7};
+    ignition_seeded_ = false;
+    ignition_seed_u32_ = 0u;
     nozzle_dir_unit_ = nozzle_dir_unit_scenario_;
 
     safeHold_s_ = 0.0;
 }
-
-
 
 void Simulation::setAgent(AgentType a) {
     agent_type_ = a;
@@ -1030,7 +1044,30 @@ void Simulation::setNozzleSweepEnabled(bool enabled) {
 }
 
 void Simulation::commandIgniteOrIncreasePyrolysis() {
+    const bool first_ignite = !ignited_;
     ignited_ = true;
+
+    // On first ignition, choose a deterministic "random" hotspot near the rack.
+    if (first_ignite) {
+        if (!ignition_seeded_) {
+            // Prefer deterministic run hash if available; otherwise fixed constant.
+            ignition_seed_u32_ = (run_param_hash_u32_ != 0u) ? run_param_hash_u32_ : 0xC0FFEE01u;
+            ignition_seeded_ = true;
+        }
+
+        std::uint32_t s = ignition_seed_u32_;
+
+        // Rack-adjacent ignition volume (meters, world frame).
+        // Conservative bounds so it appears on/near the rack face.
+        const double x = -0.35 + 0.70 * u01(s);  // [-0.35, +0.35]
+        const double y =  0.40 + 1.20 * u01(s);  // [0.40, 1.60]
+        const double z =  0.35 + 0.60 * u01(s);  // [0.35, 0.95]
+
+        hotspot_pos_m_ = {x, y, z};
+
+        // Persist advanced seed (stable for the run).
+        ignition_seed_u32_ = s;
+    }
 
     // Ensure pyrolysis stays within bounds and does not go negative.
     pyrolysis_kgps_ = std::clamp(pyrolysis_kgps_ + kPyrolysisStep_kgps, 0.0, pyrolysisMax_kgps_);
@@ -1852,6 +1889,12 @@ o.sector_EC50_adj_kg[i] = (std::isfinite(sector_EC50_adj_kg_[i]) ? std::max(0.0,
     const double waste  = kRewardWasteCoeff * o.agent_mdot_kgps;
 
     o.reward = safety - waste;
+
+    // Fire / hotspot truth (meters, world frame)
+    o.hotspot_pos_m_x = hotspot_pos_m_.x;
+    o.hotspot_pos_m_y = hotspot_pos_m_.y;
+    o.hotspot_pos_m_z = hotspot_pos_m_.z;
+
     return o;
 }
 

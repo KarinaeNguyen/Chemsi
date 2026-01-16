@@ -254,6 +254,11 @@ struct Observation {
     double ACH = 0.0;
     double agent_mdot_kgps = 0.0;
 
+    // Fire / hotspot truth (meters, world frame)
+    double hotspot_pos_m_x = 0.0;
+    double hotspot_pos_m_y = 0.0;
+    double hotspot_pos_m_z = 0.0;
+
     // ---- Phase 2A truth telemetry (simulation-produced) ----
     double vfep_rpm = 0.0;                 // actuator truth
     double hit_efficiency_0_1 = 0.0;       // computed in sim/aero module
@@ -454,12 +459,20 @@ private:
 
     // ---- Phase 3A scenario rig (sim-owned, deterministic) ----
     DemoScenario scenario_ = DemoScenario::DirectVsGlance;
+
+    // Fire/hotspot truth (meters, world frame)
+    Vec3d hotspot_pos_m_{0.0, 0.6, 0.7};
+
+    // Deterministic ignition RNG state (do not use std::rand()).
+    std::uint32_t ignition_seed_u32_ = 0u;
+    bool ignition_seeded_ = false;
+
     Vec3d nozzle_pos_m_{-2.0, 1.5, -2.0};
     Vec3d nozzle_dir_unit_scenario_{0.7, -0.15, 0.7};
     bool nozzle_sweep_enabled_ = false;
     double scenario_time_s_ = 0.0;
     double sweep_freq_hz_ = 0.25;
-    double sweep_amp_deg_ = 12.0;
+    double sweep_amp_deg_ = 12.0;   
 
     // Phase 3CA scalability: increase obstacle capacity without changing default behavior.
     // NOTE: legacy scenarios still only populate the first 1–2 obstacles deterministically.
