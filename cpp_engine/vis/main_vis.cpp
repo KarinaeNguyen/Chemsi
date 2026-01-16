@@ -306,7 +306,7 @@ struct VisualUIState {
     bool draw_hit_marker = true;
 };
 
-int main() {
+int main(int argc, char** argv) {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) return fail("glfwInit failed");
 
@@ -373,7 +373,11 @@ int main() {
     imgui_gl3 = true;
 
     vfep::Simulation sim;
-    bool running = false;
+    // --- CLI flags ---
+    bool start_calib = false;
+    for (int i = 1; i < argc; ++i) {
+    if (argv[i] && std::string(argv[i]) == "--calib") start_calib = true;
+    }
 
     VisualUIState ui;
 
@@ -465,6 +469,21 @@ int main() {
 
     vfep::Observation last_obs = sim.observe();
     push_sample(simTime, last_obs);
+
+    // --- Auto-start calibration mode (deterministic) if requested ---
+    if (start_calib) {
+        sim.enableCalibrationMode(true);
+        running = false;
+        simTime = 0.0;
+        accum_s = 0.0;
+        t_hist.clear(); T_hist.clear(); HRR_hist.clear(); O2_hist.clear();
+        EffExp_hist.clear(); KD_hist.clear(); KDTarget_hist.clear();
+
+        last_obs = sim.observe();
+        push_sample(simTime, last_obs);
+        last_substeps = 0;
+        dropped_accum = false;
+    }
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
