@@ -344,7 +344,9 @@ int main() {
     imgui_ctx = true;
 
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;   // docking panels
+    #ifndef VFEP_NO_IMGUI_DOCKING
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    #endif
 
     ImPlot::CreateContext();
     implot_ctx = true;
@@ -518,7 +520,10 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        #ifndef VFEP_NO_IMGUI_DOCKING
         ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+        #endif
+
 
         // HUD overlay
         if (ui.show_hud) {
