@@ -20,6 +20,7 @@
 
 // Step 1: model-backed ceiling rail (no UI dependencies)
 #include "../world/ceiling_rail.h"
+#include "../world/rail_mounted_nozzle.h"
 
 #include "imgui.h"
 // ---- Docking compatibility shim (older ImGui builds do not define docking flags/APIs)
@@ -93,6 +94,19 @@ static float len(Vec3f a) { return std::sqrt(dot(a,a)); }
 static Vec3f norm(Vec3f a) {
     float l = len(a);
     return (l > 1e-6f) ? mul(a, 1.0f/l) : v3(0,0,0);
+}
+
+// Step 2 staging: axis-angle rotation (Rodrigues)
+static Vec3f rotate_axis_angle(Vec3f v, Vec3f axis_unit, float ang_rad) {
+    Vec3f a = norm(axis_unit);
+    if (len(a) < 1e-6f) return v;
+    const float c = std::cos(ang_rad);
+    const float s = std::sin(ang_rad);
+    // Rodrigues: v' = v*c + (a×v)*s + a*(a·v)*(1-c)
+    return add(
+        add(mul(v, c), mul(cross(a, v), s)),
+        mul(a, dot(a, v) * (1.0f - c))
+    );
 }
 
 static void set_perspective(float fovy_deg, float aspect, float znear, float zfar) {
@@ -459,6 +473,14 @@ int main(int argc, char** argv) {
     vfep::world::CeilingRailInputs ceiling_rail_in;
     vfep::world::CeilingRailConfig ceiling_rail_cfg;
 
+    // --- Step 2: rail-mounted nozzle (model-backed, kinematics only) ---
+    vfep::world::RailMountedNozzle       rail_nozzle;
+    vfep::world::RailMountedNozzle::Config rail_nozzle_cfg;
+    vfep::world::RailMountedNozzle::Inputs rail_nozzle_in;
+
+    // UI parameter for nozzle drop below the rail
+    float nozzle_drop_from_rail_m = 0.15f;
+
     // --- Spray/nozzle parameters ---
     Vec3f nozzle_pos     = v3(-2.0f, 1.5f, -2.0f);
     Vec3f nozzle_dir     = v3(0.7f, -0.15f, 0.7f);
@@ -468,6 +490,13 @@ int main(int argc, char** argv) {
     float spray_R0       = 0.10f;
     float spray_R1       = 0.28f;
     float spray_max_len  = 8.0f;
+
+    // --- Step 2 staging: visualization-only nozzle controls (no Simulation coupling) ---
+    float viz_nozzle_s_0_1         = 0.25f;   // param along rail (future: CeilingRail)
+    float viz_nozzle_pan_deg       = 0.0f;    // yaw
+    float viz_nozzle_tilt_deg      = 0.0f;    // pitch
+    bool  viz_override_nozzle_pose = true;
+
 
     float hit_marker_base = 0.06f;
     float hit_marker_gain = 0.20f;
@@ -850,6 +879,22 @@ int main(int argc, char** argv) {
                 refresh_obs();
             }
 
+            ImGui::SeparatorText("Rail-mounted nozzle (viz only)");
+            ImGui::Checkbox("Override nozzle pose (viz only)", &viz_override_nozzle_pose);
+
+            ImGui::SliderFloat("s (0..1)", &viz_nozzle_s_0_1, 0.0f, 1.0f, "%.3f");
+            ImGui::SliderFloat("pan (deg)", &viz_nozzle_pan_deg, -180.0f, 180.0f, "%.1f");
+            ImGui::SliderFloat("tilt (deg)", &viz_nozzle_tilt_deg, -90.0f, 90.0f, "%.1f");
+
+            ImGui::DragFloat("Nozzle drop below rail (m)", &nozzle_drop_from_rail_m, 0.01f, 0.0f, 2.0f, "%.2f");
+
+            if (ImGui::Button("Reset nozzle (viz)")) {
+                viz_nozzle_s_0_1    = 0.25f;
+                viz_nozzle_pan_deg  = 0.0f;
+                viz_nozzle_tilt_deg = 0.0f;
+                nozzle_drop_from_rail_m = 0.15f;
+            }
+
             ImGui::DragFloat("Spray L0", &spray_L0, 0.02f, 0.0f, 10.0f);
             ImGui::DragFloat("Spray L1", &spray_L1, 0.02f, 0.0f, 10.0f);
             ImGui::DragFloat("Spray R0", &spray_R0, 0.01f, 0.0f, 2.0f);
@@ -932,6 +977,37 @@ int main(int argc, char** argv) {
             }
 
             ImGui::End();
+        }
+
+        // --- Step 2: model-backed rail-mounted nozzle (viz-driven, kinematics only) ---
+        // Recompute the rail every frame because the nozzle pose depends on it.
+        // (We will draw the rail later; this block is about producing pose.)
+        ceiling_rail_cfg.drop_from_ceiling_m = (double)rail_ceiling_drop_m;
+        ceiling_rail_cfg.margin_from_rack_m  = (double)rail_margin_m;
+        ceiling_rail.setConfig(ceiling_rail_cfg);
+
+        ceiling_rail_in.ceiling_y_m      = 0.0; // keep default behavior (ceiling_y = 2*warehouse_half.y)
+        ceiling_rail_in.warehouse_half_m = to_v3d(warehouse_half);
+        ceiling_rail_in.rack_center_m    = to_v3d(rack_center);
+        ceiling_rail_in.rack_half_m      = to_v3d(rack_half);
+        ceiling_rail.recompute(ceiling_rail_in);
+
+        // If UI override is enabled, compute nozzle pose from rail + s + yaw/pitch + drop.
+        if (viz_override_nozzle_pose && ceiling_rail.isValid()) {
+            rail_nozzle_cfg.nozzle_drop_from_rail_m = (double)nozzle_drop_from_rail_m;
+            rail_nozzle.setConfig(rail_nozzle_cfg);
+
+            rail_nozzle_in.ceiling_rail = &ceiling_rail;
+            rail_nozzle_in.s_0_1        = (double)viz_nozzle_s_0_1;
+            rail_nozzle_in.yaw_deg      = (double)viz_nozzle_pan_deg;
+            rail_nozzle_in.pitch_deg    = (double)viz_nozzle_tilt_deg;
+
+            rail_nozzle.recompute(rail_nozzle_in);
+
+            if (rail_nozzle.isValid()) {
+                nozzle_pos = to_v3f(rail_nozzle.pose().nozzle_pos_room_m);
+                nozzle_dir = to_v3f(rail_nozzle.pose().spray_dir_unit_room);
+            }
         }
 
         ImGui::Render();
