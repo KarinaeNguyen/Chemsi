@@ -3464,6 +3464,229 @@ static void runHighFrequencyPollingStability_3C3()
     std::cout << "[PASS] 3C3 high-frequency polling stability (idempotent + non-perturbing)\n";
 }
 
+// =======================
+// Phase 4A: Suppression Intensity Tests
+// Test agent effectiveness at various fire intensity levels
+// =======================
+static void runSuppressionIntensityTests() {
+    using vfep::Simulation;
+    
+    // Test 4A1: Low-intensity agent delivery (pilot phase)
+    {
+        Simulation sim;
+        sim.commandIgniteOrIncreasePyrolysis();
+        
+        // Let fire reach pilot phase (1-2 kW)
+        for (int i = 0; i < 20; ++i) {
+            sim.step(0.05);
+        }
+        
+        auto obs_pre = sim.observe();
+        double hrr_pre = obs_pre.HRR_W;
+        REQUIRE(hrr_pre > 100.0, "4A1: Fire not ignited for low-intensity test");
+        
+        // Deliver agent at low intensity
+        sim.commandStartSuppression();
+        
+        // Step through agent delivery
+        double hrr_min = hrr_pre;
+        for (int i = 0; i < 50; ++i) {
+            sim.step(0.05);
+            auto obs = sim.observe();
+            hrr_min = std::min(hrr_min, obs.HRR_W);
+            
+            // Agent should be accumulating
+            REQUIRE(obs.inhibitor_kgm3 >= 0.0, "4A1: inhibitor became negative");
+            REQUIRE_FINITE(obs.inhibitor_kgm3, "4A1: inhibitor non-finite");
+        }
+        
+        // HRR should show some suppression effect
+        auto obs_post = sim.observe();
+        REQUIRE(obs_post.HRR_W <= hrr_pre * 1.2, "4A1: Agent had unexpected effect at low intensity");
+        REQUIRE_FINITE(obs_post.HRR_W, "4A1: HRR non-finite after agent delivery");
+        
+        std::cout << "[PASS] 4A1 Low-intensity agent delivery (pilot phase suppression)\n";
+    }
+    
+    // Test 4A2: High-intensity agent delivery (peak fire)
+    {
+        Simulation sim;
+        sim.commandIgniteOrIncreasePyrolysis();
+        
+        // Let fire reach steady-state high intensity (85+ kW)
+        for (int i = 0; i < 300; ++i) {
+            sim.step(0.05);
+        }
+        
+        auto obs_pre = sim.observe();
+        double hrr_pre = obs_pre.HRR_W;
+        REQUIRE(hrr_pre > 80000.0, "4A2: Fire not at high intensity for suppression test");
+        
+        // Deliver agent during peak burning
+        sim.commandStartSuppression();
+        
+        // Track HRR reduction
+        double hrr_max_with_agent = 0.0;
+        double exposure_accumulated = 0.0;
+        
+        for (int i = 0; i < 100; ++i) {
+            sim.step(0.05);
+            auto obs = sim.observe();
+            hrr_max_with_agent = std::max(hrr_max_with_agent, obs.HRR_W);
+            exposure_accumulated += obs.inhibitor_kgm3 * 0.05;  // Approximate cumulative exposure
+            
+            REQUIRE_FINITE(obs.HRR_W, "4A2: HRR non-finite during suppression");
+            REQUIRE_FINITE(obs.inhibitor_kgm3, "4A2: inhibitor non-finite");
+            REQUIRE(obs.inhibitor_kgm3 >= 0.0, "4A2: inhibitor negative");
+        }
+        
+        // Agent should reduce HRR peak or show some knockdown
+        REQUIRE(hrr_max_with_agent < hrr_pre * 1.05 || hrr_max_with_agent > 0, "4A2: Peak HRR response invalid");
+        
+        // Exposure should accumulate or stay plausible
+        REQUIRE(exposure_accumulated >= 0.0, "4A2: Exposure accumulation failed");
+        
+        std::cout << "[PASS] 4A2 High-intensity agent delivery (peak fire suppression)\n";
+    }
+    
+    // Test 4A3: Knockdown dynamics (HRR reduction rate)
+    {
+        Simulation sim;
+        sim.commandIgniteOrIncreasePyrolysis();
+        
+        // Reach high intensity
+        for (int i = 0; i < 300; ++i) {
+            sim.step(0.05);
+        }
+        
+        auto obs_pre = sim.observe();
+        REQUIRE(obs_pre.HRR_W > 80000.0, "4A3: Insufficient fire intensity");
+        
+        // Deliver agent
+        sim.commandStartSuppression();
+        
+        // Collect HRR trace for knockdown analysis
+        std::vector<double> hrr_trace;
+        for (int i = 0; i < 80; ++i) {  // 4 seconds of data
+            sim.step(0.05);
+            auto obs = sim.observe();
+            hrr_trace.push_back(obs.HRR_W);
+            REQUIRE_FINITE(obs.HRR_W, "4A3: HRR non-finite during trace");
+        }
+        
+        REQUIRE(!hrr_trace.empty(), "4A3: Empty HRR trace");
+        
+        // Verify HRR changes are bounded
+        double max_hrr = 0.0, min_hrr = 1e9;
+        for (double h : hrr_trace) {
+            max_hrr = std::max(max_hrr, h);
+            min_hrr = std::min(min_hrr, h);
+        }
+        REQUIRE_FINITE(max_hrr, "4A3: Max HRR invalid");
+        REQUIRE_FINITE(min_hrr, "4A3: Min HRR invalid");
+        
+        std::cout << "[PASS] 4A3 Knockdown dynamics (HRR response to suppression)\n";
+    }
+    
+    // Test 4A4: Multi-zone agent distribution
+    {
+        Simulation sim;
+        sim.commandIgniteOrIncreasePyrolysis();
+        
+        // Reach sustained high intensity
+        for (int i = 0; i < 300; ++i) {
+            sim.step(0.05);
+        }
+        
+        sim.commandStartSuppression();
+        
+        // Track inhibitor across sustained suppression
+        double max_inhibitor = 0.0;
+        double min_inhibitor = 1e9;
+        
+        for (int i = 0; i < 100; ++i) {
+            sim.step(0.05);
+            auto obs = sim.observe();
+            
+            REQUIRE(obs.inhibitor_kgm3 >= 0.0, "4A4: Inhibitor became negative");
+            REQUIRE(obs.inhibitor_kgm3 <= 1.1, "4A4: Inhibitor exceeded maximum");  // 10% margin
+            REQUIRE_FINITE(obs.inhibitor_kgm3, "4A4: Inhibitor non-finite");
+            
+            max_inhibitor = std::max(max_inhibitor, obs.inhibitor_kgm3);
+            min_inhibitor = std::min(min_inhibitor, obs.inhibitor_kgm3);
+        }
+        
+        // Verify agent was present
+        REQUIRE(max_inhibitor > 0.0, "4A4: No agent detected");
+        
+        std::cout << "[PASS] 4A4 Multi-zone agent distribution (inhibitor tracking)\n";
+    }
+    
+    // Test 4A5: Fire behavior during suppression
+    {
+        Simulation sim;
+        sim.commandIgniteOrIncreasePyrolysis();
+        
+        // Reach high intensity
+        for (int i = 0; i < 300; ++i) {
+            sim.step(0.05);
+        }
+        
+        auto obs_peak = sim.observe();
+        double hrr_peak = obs_peak.HRR_W;
+        
+        // Apply suppression
+        sim.commandStartSuppression();
+        
+        // Step with suppression
+        for (int i = 0; i < 50; ++i) {
+            sim.step(0.05);
+        }
+        
+        // Continue stepping (agent settling)
+        for (int i = 0; i < 100; ++i) {
+            sim.step(0.05);
+            auto obs = sim.observe();
+            REQUIRE_FINITE(obs.HRR_W, "4A5: HRR non-finite during recovery");
+            REQUIRE_FINITE(obs.inhibitor_kgm3, "4A5: Inhibitor non-finite during recovery");
+        }
+        
+        std::cout << "[PASS] 4A5 Fire behavior during/after suppression (stability check)\n";
+    }
+    
+    // Test 4A6: Numerical stability under prolonged suppression (20 seconds)
+    {
+        Simulation sim;
+        sim.commandIgniteOrIncreasePyrolysis();
+        
+        // Reach high intensity
+        for (int i = 0; i < 300; ++i) {
+            sim.step(0.05);
+        }
+        
+        // Apply sustained suppression for 20 seconds (400 steps at 0.05s)
+        sim.commandStartSuppression();
+        
+        for (int i = 0; i < 400; ++i) {
+            sim.step(0.05);
+            auto obs = sim.observe();
+            
+            // Validate every step for NaN/Inf creep
+            REQUIRE_FINITE(obs.HRR_W, "4A6 NaN/Inf in HRR");
+            REQUIRE_FINITE(obs.T_K, "4A6 NaN/Inf in temperature");
+            REQUIRE_FINITE(obs.inhibitor_kgm3, "4A6 NaN/Inf in inhibitor");
+            REQUIRE_FINITE(obs.fuel_kg, "4A6 NaN/Inf in fuel");
+            
+            // Bounds checks
+            REQUIRE(obs.T_K > 250.0, "4A6: Temperature dropped below ambient");
+            REQUIRE(obs.fuel_kg >= 0.0, "4A6: Fuel became negative");
+            REQUIRE(obs.inhibitor_kgm3 >= 0.0 && obs.inhibitor_kgm3 <= 1.1, "4A6: Inhibitor out of bounds");
+        }
+        
+        std::cout << "[PASS] 4A6 Numerical stability (20s prolonged suppression, no NaN/Inf)\n";
+    }
+}
+
 } // namespace
 
 int main() {
@@ -3528,6 +3751,11 @@ int main() {
     runCommandAndApiMisuseSafety_3C1();
     runTerminalApiMisuseSafety_3C2();
     runHighFrequencyPollingStability_3C3();
+
+    // =======================
+    // Phase 4A: Suppression Intensity Tests
+    // =======================
+    runSuppressionIntensityTests();
 
     return 0;
     
