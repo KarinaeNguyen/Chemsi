@@ -47,6 +47,7 @@
 #    define NOMINMAX
 #  endif
 #  include <windows.h>
+#  include <shellapi.h>
 #  include <commdlg.h>
 #  include <shlobj.h>
 #  include <objidl.h>
@@ -256,7 +257,7 @@ static bool export_to_xlsx(const char* path,
 
     const int rc = workbook_close(wb);
     if (rc != LXW_NO_ERROR) {
-        err_out = lxw_strerror(rc);
+        err_out = lxw_strerror(static_cast<lxw_error>(rc));
         return false;
     }
 
