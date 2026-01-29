@@ -196,6 +196,9 @@ endif()
 add_executable(VFEP_Sim src/main.cpp)
 target_link_libraries(VFEP_Sim PRIVATE chemsi)
 
+add_executable(ValidationSuite src/ValidationSuite.cpp)
+target_link_libraries(ValidationSuite PRIVATE chemsi)
+
 add_executable(VFEP_GrpcClient src/grpc_client.cpp)
 target_link_libraries(VFEP_GrpcClient PRIVATE chemsi)
 

@@ -407,6 +407,27 @@ public:
     void setNozzlePose(const Vec3d& pos_m, const Vec3d& dir_unit);
     void setNozzleSweepEnabled(bool enabled);
 
+    // Ventilation tuning helpers (validation/calibration only)
+    void setVentilationACH(double ach);
+    void setVentilationSupplyK(double T_supply_K);
+
+    // Pyrolysis tuning helper (validation/calibration only)
+    void setPyrolysisMax(double kgps);
+    void setPyrolysisRate(double kgps); // Set current rate directly
+
+    // Combustion tuning helper (validation/calibration only)
+    void setCombustionHeatRelease(double J_per_mol);
+
+    // Reactor geometry tuning (validation/calibration only)
+    void setReactorGeometry(double volume_m3, double area_m2, double h_W_m2K);
+
+    // Li-ion tuning helper (validation/calibration only)
+    void setLiIonEnabled(bool enabled);
+
+    // Agent/suppression tuning (validation/calibration only)
+    void setAgentDeliveryRate(double mdot_kgps);
+    void setKnockdown(double kd_0_1); // Direct knockdown setter for validation
+
     void commandIgniteOrIncreasePyrolysis();
     void commandStartSuppression();
 
@@ -497,6 +518,9 @@ private:
     double exposure_kg_ = 0.0;
     double knockdown_target_0_1_ = 0.0;
     double knockdown_0_1_ = 0.0;
+
+    // Validation override: if true, knockdown is frozen at current value
+    bool validation_knockdown_frozen_ = false;
 
     static constexpr int kNumSectors_ = 4;
     std::array<double, kNumSectors_> sector_exposure_kg_{{0.0,0.0,0.0,0.0}};

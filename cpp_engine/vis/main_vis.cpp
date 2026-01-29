@@ -366,6 +366,9 @@ static int fail(const char* msg) {
 // STL Mesh Loader & Renderer (Binary STL Format)
 // ============================================================
 
+// Forward declare Vec3f for STL structures
+struct Vec3f { float x, y, z; };
+
 struct STLTriangle {
     Vec3f normal;
     Vec3f v0, v1, v2;
@@ -507,7 +510,7 @@ static void draw_stl_mesh_wireframe(const STLMesh& mesh, Vec3f position, Vec3f s
 // Adds: HUD overlay + visualization toggles + docking
 // ============================================================
 
-struct Vec3f { float x, y, z; };
+// Vec3f already defined above for STL structures
 
 static Vec3f v3(float x, float y, float z) { return {x,y,z}; }
 
@@ -938,6 +941,7 @@ int main(int argc, char** argv) {
     float nozzle_cam_back_m = 0.15f;  // small offset behind nozzle
     float aim_cursor_dist_m = 2.0f;
     float aim_cursor_size_m = 0.12f;
+    bool  auto_center_camera_on_fire = false;  // Continuously track fire with camera
 
     // --- Phase-1 scene layout (meters, simple boxes) ---
     Vec3f warehouse_half = v3(6.0f, 3.0f, 6.0f);
@@ -1010,6 +1014,7 @@ int main(int argc, char** argv) {
     float viz_nozzle_pan_deg       = 0.0f;    // yaw
     float viz_nozzle_tilt_deg      = 0.0f;    // pitch
     bool  viz_override_nozzle_pose = true;
+    bool  auto_aim_at_fire         = false;   // Automatically aim nozzle at fire horizontally
 
     // --- Automatic deployment state (arm movement animation) ---
     Vec3f nozzle_target_pos   = nozzle_pos;  // Target position for deployment
@@ -1171,6 +1176,13 @@ int main(int argc, char** argv) {
         draft_vel_mps = v3((float)last_obs.draft_vel_mps_x,
                            (float)last_obs.draft_vel_mps_y,
                            (float)last_obs.draft_vel_mps_z);
+
+        // --- Auto-center camera on fire (continuous tracking) ---
+        if (auto_center_camera_on_fire) {
+            cam_target.x = (float)last_obs.hotspot_pos_m_x;
+            cam_target.z = (float)last_obs.hotspot_pos_m_z;
+            cam_target.y = (float)last_obs.hotspot_pos_m_y + 0.5f;
+        }
 
         // --- ImGui frame ---
         ImGui_ImplOpenGL3_NewFrame();
@@ -1562,6 +1574,15 @@ int main(int argc, char** argv) {
                     ImGui::Checkbox("Enable safety guard", &safety_guard_enabled);
                     ImGui::SliderFloat("Standoff (m)", &nozzle_standoff_m, 0.1f, 2.0f, "%.2f");
                     
+                    ImGui::Separator();
+                    ImGui::TextColored(cmd_header, "[AUTO-AIM] Fire Tracking");
+                    ImGui::Checkbox("Auto track fire (horizontal)", &auto_aim_at_fire);
+                    if (auto_aim_at_fire) {
+                        ImGui::TextWrapped("Nozzle moves along rail to stay above fire (X,Z) and aims at it.");
+                        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Note: Uncheck 'Override nozzle pose' to enable.");
+                    }
+                    
+                    ImGui::Separator();
                     ImGui::Checkbox("Override nozzle pose", &viz_override_nozzle_pose);
                     if (viz_override_nozzle_pose) {
                         ImGui::SliderFloat("Nozzle s (0-1)", &viz_nozzle_s_0_1, 0.0f, 1.0f, "%.3f");
@@ -1590,6 +1611,35 @@ int main(int argc, char** argv) {
                     ImGui::Checkbox("Spray cone", &ui.draw_spray);
                     ImGui::Checkbox("Hit marker", &ui.draw_hit_marker);
                     ImGui::Checkbox("Draft arrow", &ui.draw_draft);
+                    
+                    ImGui::Separator();
+                    ImGui::TextColored(cmd_header, "[CAMERA] View Control");
+                    ImGui::Separator();
+                    
+                    ImGui::Checkbox("Auto-center camera on fire (continuous)", &auto_center_camera_on_fire);
+                    if (auto_center_camera_on_fire) {
+                        ImGui::TextWrapped("Camera automatically tracks fire horizontally (X,Z) in real-time.");
+                    }
+                    ImGui::Spacing();
+                    
+                    if (ImGui::Button("[ MANUAL CENTER ON FIRE ]", ImVec2(-1, 25))) {
+                        // One-time manual center on fire
+                        cam_target.x = (float)last_obs.hotspot_pos_m_x;
+                        cam_target.z = (float)last_obs.hotspot_pos_m_z;
+                        cam_target.y = (float)last_obs.hotspot_pos_m_y + 0.5f;
+                        cam_yaw_deg = 0.0f;
+                        cam_pitch_deg = 30.0f;
+                        cam_dist = 5.0f;
+                    }
+                    ImGui::Spacing();
+                    
+                    ImGui::SliderFloat("Camera Yaw (deg)", &cam_yaw_deg, -180.0f, 180.0f, "%.1f");
+                    ImGui::SliderFloat("Camera Pitch (deg)", &cam_pitch_deg, -85.0f, 85.0f, "%.1f");
+                    ImGui::SliderFloat("Camera Distance (m)", &cam_dist, 0.5f, 20.0f, "%.1f");
+                    ImGui::Spacing();
+                    ImGui::Text("Camera Target: (%.2f, %.2f, %.2f)", cam_target.x, cam_target.y, cam_target.z);
+                    ImGui::Text("Fire Hotspot: (%.2f, %.2f, %.2f)", last_obs.hotspot_pos_m_x, last_obs.hotspot_pos_m_y, last_obs.hotspot_pos_m_z);
+                    ImGui::Text("Nozzle Pos:   (%.2f, %.2f, %.2f)", nozzle_pos.x, nozzle_pos.y, nozzle_pos.z);
                     
                     ImGui::EndTabItem();
                 }
@@ -1800,6 +1850,7 @@ int main(int argc, char** argv) {
         } else if (!viz_override_nozzle_pose && last_obs.agent_mdot_kgps > 1e-6) {
             // Suppression active. If VFB mode, keep nozzle at rail standoff and only aim; otherwise auto-adjust height.
             if (ceiling_rail.isValid()) {
+                // Always use fire position for horizontal tracking (auto-aim or suppression default)
                 const auto proj = ceiling_rail.projectNearestXZ(
                     (double)fire_center.x,
                     (double)fire_center.z,
@@ -1899,12 +1950,10 @@ int main(int argc, char** argv) {
             // When not overriding and no suppression active, 
             // keep nozzle at rail position for ready state
             if (ceiling_rail.isValid()) {
-                // Project current nozzle X,Z onto rail to maintain position
-                const auto proj = ceiling_rail.projectNearestXZ(
-                    (double)nozzle_pos.x, 
-                    (double)nozzle_pos.z, 
-                    0.0  // s_hint
-                );
+                // Project fire or current nozzle X,Z onto rail
+                const auto proj = auto_aim_at_fire 
+                    ? ceiling_rail.projectNearestXZ((double)fire_center.x, (double)fire_center.z, 0.0)
+                    : ceiling_rail.projectNearestXZ((double)nozzle_pos.x, (double)nozzle_pos.z, 0.0);
                 
                 // Keep nozzle at rail height
                 const float rail_y = (float)ceiling_rail.geometry().y_m;
@@ -1914,7 +1963,15 @@ int main(int argc, char** argv) {
                     (float)proj.pos_room_m.z
                 );
                 
-                // Maintain current direction or point forward
+                // If auto-aim is enabled, aim at fire
+                if (auto_aim_at_fire) {
+                    Vec3f to_fire = sub(fire_center, nozzle_pos);
+                    const float to_fire_len = len(to_fire);
+                    if (to_fire_len > 1e-3f) {
+                        nozzle_dir = mul(to_fire, 1.0f / to_fire_len);
+                    }
+                }
+                
                 sim.setNozzlePose({(double)nozzle_pos.x, (double)nozzle_pos.y, (double)nozzle_pos.z},
                                   {(double)nozzle_dir.x, (double)nozzle_dir.y, (double)nozzle_dir.z});
             }

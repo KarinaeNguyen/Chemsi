@@ -42,6 +42,10 @@ public:
     double temperatureK() const noexcept { return T_K_; }
     void setTemperatureK(double T) noexcept { T_K_ = T; }
 
+    // Combustion model accessor (validation/calibration only)
+    CombustionModel& combustionModel() noexcept { return model_; }
+    const CombustionModel& combustionModel() const noexcept { return model_; }
+
     // Totals/mixture properties operate over gas species only.
     [[nodiscard]] double totalGasMoles() const noexcept;
 

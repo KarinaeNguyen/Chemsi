@@ -351,7 +351,7 @@ Simulation::Simulation()
           cm.Ea = 8.0e4;
           cm.orderFuel = 1.0;
           cm.orderO2 = 1.0;
-          cm.heatRelease_J_per_molFuel = 6.0e5;
+          cm.heatRelease_J_per_molFuel = 1.0e5;
           return cm;
       }()
   ),
@@ -1043,6 +1043,70 @@ void Simulation::setNozzleSweepEnabled(bool enabled) {
     nozzle_sweep_enabled_ = enabled;
 }
 
+void Simulation::setVentilationACH(double ach) {
+    auto vc = vent_.config();
+    vc.ACH = ach;
+    vent_.setConfig(vc);
+}
+
+void Simulation::setVentilationSupplyK(double T_supply_K) {
+    auto vc = vent_.config();
+    vc.T_supply_K = T_supply_K;
+    vent_.setConfig(vc);
+}
+
+void Simulation::setPyrolysisMax(double kgps) {
+    if (std::isfinite(kgps) && kgps >= 0.0) {
+        pyrolysisMax_kgps_ = kgps;
+    }
+}
+
+void Simulation::setPyrolysisRate(double kgps) {
+    if (std::isfinite(kgps) && kgps >= 0.0) {
+        pyrolysis_kgps_ = kgps;
+    }
+}
+
+void Simulation::setCombustionHeatRelease(double J_per_mol) {
+    if (std::isfinite(J_per_mol) && J_per_mol >= 0.0) {
+        reactor_.combustionModel().heatRelease_J_per_molFuel = J_per_mol;
+    }
+}
+
+void Simulation::setReactorGeometry(double volume_m3, double area_m2, double h_W_m2K) {
+    if (std::isfinite(volume_m3) && volume_m3 > 0.0 &&
+        std::isfinite(area_m2) && area_m2 > 0.0 &&
+        std::isfinite(h_W_m2K) && h_W_m2K > 0.0) {
+        ReactorConfig rc = reactor_.config();
+        rc.volume_m3 = volume_m3;
+        rc.area_m2 = area_m2;
+        rc.h_W_m2K = h_W_m2K;
+        reactor_.setConfig(rc);
+    }
+}
+
+void Simulation::setAgentDeliveryRate(double mdot_kgps) {
+    if (std::isfinite(mdot_kgps) && mdot_kgps >= 0.0) {
+        agent_mdot_kgps_ = mdot_kgps;
+    }
+}
+
+void Simulation::setKnockdown(double kd_0_1) {
+    if (std::isfinite(kd_0_1)) {
+        knockdown_0_1_ = clamp01(kd_0_1);
+        // Also set target to ensure it holds
+        for (int i = 0; i < 4; ++i) {
+            sector_knockdown_target_0_1_[i] = clamp01(kd_0_1);
+            sector_knockdown_0_1_[i] = clamp01(kd_0_1);
+        }
+        validation_knockdown_frozen_ = true; // Prevent recalculation
+    }
+}
+
+void Simulation::setLiIonEnabled(bool enabled) {
+    liion_.setEnabled(enabled);
+}
+
 void Simulation::commandIgniteOrIncreasePyrolysis() {
     const bool first_ignite = !ignited_;
     ignited_ = true;
@@ -1439,13 +1503,17 @@ sector_knockdown_target_0_1_[i] =
         }
 
         // Aggregate (for Phase 2B semantics)
-        exposure_kg_ = 0.0;
-        knockdown_0_1_ = 0.0;
-        for (int i = 0; i < kNumSectors_; ++i) {
-            exposure_kg_ += sector_exposure_kg_[i];
-            knockdown_0_1_ += sector_knockdown_0_1_[i];
+        if (!validation_knockdown_frozen_) {
+            // Normal path: calculate from sectors
+            exposure_kg_ = 0.0;
+            knockdown_0_1_ = 0.0;
+            for (int i = 0; i < kNumSectors_; ++i) {
+                exposure_kg_ += sector_exposure_kg_[i];
+                knockdown_0_1_ += sector_knockdown_0_1_[i];
+            }
+            knockdown_0_1_ = clamp01(knockdown_0_1_ / (double)kNumSectors_);
         }
-        knockdown_0_1_ = clamp01(knockdown_0_1_ / (double)kNumSectors_);
+        // else: validation_knockdown_frozen_ = true, keep knockdown_0_1_ as-is
 // Phase 3B: aggregate chemical layer (for headline + HRR mapping)
 utilization_U_0_1_ = utilizationU(exposure_kg_, agent_profile_.k_util_1_per_kg);
 effective_exposure_kg_ = (std::isfinite(exposure_kg_) ? std::max(0.0, exposure_kg_) : 0.0)
