@@ -174,7 +174,7 @@ int main() {
 
     // NIST Data Center: peak HRR (use default data center geometry)
     std::cout << "=== NIST Data Center Fire Validation ===\n";
-    const RunMetrics nist = runScenario(dt, 300.0, 2.0, 5.0, false, -1.0, 0.01, -1.0, {120.0, 180.0, 10.0});
+    const RunMetrics nist = runScenario(dt, 300.0, 2.0, 5.0, false, -1.0, 0.01, 1.0e5, {120.0, 180.0, 10.0});
     const double nist_target_kW = 75.0;
     const double nist_low_kW = 60.0;
     const double nist_high_kW = 90.0;
@@ -189,8 +189,8 @@ int main() {
 
     // Suppression effectiveness: compare HRR AFTER suppression starts (not peak)
     std::cout << "=== Suppression Effectiveness Validation ===\n";
-    const RunMetrics baseline = runScenario(dt, 120.0, 1.0, 15.0, false, -1.0, 0.03, -1.0, {120.0, 180.0, 10.0});
-    const RunMetrics suppressed = runScenario(dt, 120.0, 1.0, 15.0, true, -1.0, 0.03, -1.0, {120.0, 180.0, 10.0});
+    const RunMetrics baseline = runScenario(dt, 120.0, 1.0, 15.0, false, -1.0, 0.03, 1.0e5, {120.0, 180.0, 10.0});
+    const RunMetrics suppressed = runScenario(dt, 120.0, 1.0, 15.0, true, -1.0, 0.03, 1.0e5, {120.0, 180.0, 10.0});
     const double reduction = (baseline.avg_HRR_after_20s_W > 0.0)
         ? (baseline.avg_HRR_after_20s_W - suppressed.avg_HRR_after_20s_W) / baseline.avg_HRR_after_20s_W
         : 0.0;
