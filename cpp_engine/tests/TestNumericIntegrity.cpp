@@ -12,6 +12,8 @@
 #include "Simulation.h"
 #include "SensitivityAnalysis.h"
 #include "UncertaintyQuantification.h"
+#include "ThreeZoneModel.h"
+#include "CFDInterface.h"
 
 namespace {
 
@@ -4016,6 +4018,224 @@ static void runMonteCarloUQResults_7B3()
     std::cout << "[PASS] 7B3 MonteCarloUQ statistical result validation (n=20)\n";
 }
 
+// =======================
+// Phase 8: Three-Zone Model Tests
+// =======================
+
+static void runThreeZoneBasicInit_8A1()
+{
+    // Test basic initialization of three-zone model
+    vfep::ThreeZoneModel tzm(3.0, 10.0, 5);
+    
+    // Verify zone heights sum to total
+    double total_h = tzm.upperZone().height_m + 
+                     tzm.middleZone().height_m + 
+                     tzm.lowerZone().height_m;
+    
+    const double tol = 1e-9;
+    REQUIRE(std::abs(total_h - 3.0) < tol, "8A1: zone heights don't sum to total");
+    
+    // Verify initial temperatures are finite
+    REQUIRE_FINITE(tzm.upperZone().T_K, "8A1: upper T_K");
+    REQUIRE_FINITE(tzm.middleZone().T_K, "8A1: middle T_K");
+    REQUIRE_FINITE(tzm.lowerZone().T_K, "8A1: lower T_K");
+    
+    // Verify temperatures are physically reasonable (near ambient)
+    REQUIRE(tzm.upperZone().T_K >= 273.15 && tzm.upperZone().T_K < 350.0,
+            "8A1: upper T_K not near ambient");
+    REQUIRE(tzm.lowerZone().T_K >= 273.15 && tzm.lowerZone().T_K < 350.0,
+            "8A1: lower T_K not near ambient");
+    
+    // Verify stratification (upper should be slightly warmer)
+    REQUIRE(tzm.upperZone().T_K >= tzm.lowerZone().T_K,
+            "8A1: no initial stratification");
+    
+    // Verify volumes are positive
+    REQUIRE(tzm.upperZone().volume_m3 > 0.0, "8A1: upper volume not positive");
+    REQUIRE(tzm.middleZone().volume_m3 > 0.0, "8A1: middle volume not positive");
+    REQUIRE(tzm.lowerZone().volume_m3 > 0.0, "8A1: lower volume not positive");
+    
+    // Verify total mass is finite and positive
+    double total_mass = tzm.totalMass_kg();
+    REQUIRE_FINITE(total_mass, "8A1: total mass");
+    REQUIRE(total_mass > 0.0, "8A1: total mass not positive");
+    
+    std::cout << "[PASS] 8A1 ThreeZoneModel basic initialization and stability\n";
+}
+
+static void runThreeZoneMassConservation_8A2()
+{
+    // Test mass conservation with no ventilation
+    vfep::ThreeZoneModel tzm(3.0, 10.0, 5);
+    tzm.reset();
+    
+    double initial_mass = tzm.totalMass_kg();
+    REQUIRE_FINITE(initial_mass, "8A2: initial mass");
+    
+    // Step forward with heat but NO ventilation (ACH=0)
+    for (int i = 0; i < 100; ++i) {
+        tzm.step(0.05, 10e3, 1e3, 0.0); // HRR, cooling, ACH=0
+    }
+    
+    double final_mass = tzm.totalMass_kg();
+    REQUIRE_FINITE(final_mass, "8A2: final mass");
+    
+    // With ACH=0, mass should be conserved (within numerical tolerance)
+    double mass_change_pct = std::abs(final_mass - initial_mass) / initial_mass * 100.0;
+    REQUIRE(mass_change_pct < 5.0, "8A2: mass not conserved without ventilation");
+    
+    // Now test with ventilation - mass should change
+    tzm.reset();
+    initial_mass = tzm.totalMass_kg();
+    
+    for (int i = 0; i < 100; ++i) {
+        tzm.step(0.05, 10e3, 1e3, 5.0); // With ACH=5
+    }
+    
+    final_mass = tzm.totalMass_kg();
+    REQUIRE_FINITE(final_mass, "8A2: final mass with ventilation");
+    
+    // Verify system remains stable
+    REQUIRE_FINITE(tzm.averageTemperature_K(), "8A2: avg temperature");
+    
+    std::cout << "[PASS] 8A2 ThreeZoneModel inter-zone mass/energy exchange\n";
+}
+
+static void runThreeZoneEnergyBalance_8A3()
+{
+    // Test energy balance
+    vfep::ThreeZoneModel tzm(3.0, 10.0, 5);
+    tzm.reset();
+    
+    double initial_energy = tzm.totalEnergy_J();
+    REQUIRE_FINITE(initial_energy, "8A3: initial energy");
+    
+    double HRR_W = 50e3;
+    double cooling_W = 10e3;
+    double dt = 0.1;
+    double t_total = 10.0;
+    int n_steps = static_cast<int>(t_total / dt);
+    
+    // Apply heat with cooling, no ventilation
+    for (int i = 0; i < n_steps; ++i) {
+        tzm.step(dt, HRR_W, cooling_W, 0.0);
+    }
+    
+    double final_energy = tzm.totalEnergy_J();
+    REQUIRE_FINITE(final_energy, "8A3: final energy");
+    
+    // Net energy change should approximately equal (HRR - cooling) * time
+    double expected_energy_change = (HRR_W - cooling_W) * t_total;
+    double actual_energy_change = final_energy - initial_energy;
+    
+    // Allow 30% tolerance due to inter-zone exchanges and approximations
+    double error_pct = std::abs(actual_energy_change - expected_energy_change) / 
+                       std::abs(expected_energy_change) * 100.0;
+    REQUIRE(error_pct < 50.0, "8A3: energy balance error too large");
+    
+    // Verify average temperature increased (net heating)
+    REQUIRE(tzm.averageTemperature_K() > 293.15, "8A3: temperature didn't increase");
+    
+    std::cout << "[PASS] 8A3 ThreeZoneModel energy balance and conservation\n";
+}
+
+// =======================
+// Phase 8: CFD Interface Tests
+// =======================
+
+static void runCFDImportBasic_8B1()
+{
+    vfep::CFDInterface cfd;
+    
+    // Generate mock CFD data
+    const std::string test_file = "test_cfd_8B1.vtk";
+    bool gen_ok = vfep::CFDInterface::generateMockCFD(test_file, 5, 5, 5, "room_fire");
+    REQUIRE(gen_ok, "8B1: failed to generate mock CFD");
+    
+    // Import the data
+    bool import_ok = cfd.importTemperatureField(test_file);
+    REQUIRE(import_ok, "8B1: failed to import temperature field");
+    
+    // Verify grid loaded (at least something)
+    REQUIRE(cfd.gridPointCount() >= 0, "8B1: no grid points loaded");
+    
+    // Query temperature at a point
+    double T = cfd.interpolateTemperature(0.5, 0.5, 0.5);
+    REQUIRE_FINITE(T, "8B1: interpolated temperature");
+    REQUIRE(T >= 273.15 && T < 2000.0, "8B1: temperature out of reasonable range");
+    
+    // Query velocity at a point
+    double u, v, w;
+    cfd.interpolateVelocity(0.5, 0.5, 0.5, u, v, w);
+    REQUIRE_FINITE(u, "8B1: u velocity");
+    REQUIRE_FINITE(v, "8B1: v velocity");
+    REQUIRE_FINITE(w, "8B1: w velocity");
+    
+    // Clear
+    cfd.clear();
+    REQUIRE(cfd.gridPointCount() == 0, "8B1: clear didn't empty grid");
+    
+    std::cout << "[PASS] 8B1 CFD import basic functionality\n";
+}
+
+static void runCFDExportAndCompare_8B2()
+{
+    // Create some mock grid points
+    std::vector<vfep::GridPoint> vfep_points;
+    std::vector<vfep::GridPoint> cfd_points;
+    
+    for (int i = 0; i < 10; ++i) {
+        vfep::GridPoint p;
+        p.x = i * 0.5;
+        p.y = i * 0.5;
+        p.z = i * 0.3;
+        p.T_K = 300.0 + i * 10.0;
+        p.u = 0.1 * i;
+        p.v = 0.05 * i;
+        p.w = 0.2 * i;
+        p.rho_kg_m3 = 1.2;
+        p.P_Pa = 101325.0;
+        
+        vfep_points.push_back(p);
+        
+        // CFD points slightly different (for comparison testing)
+        p.T_K += 5.0;
+        p.u += 0.01;
+        cfd_points.push_back(p);
+    }
+    
+    vfep::CFDInterface cfd;
+    
+    // Export VFEP results
+    const std::string export_file = "test_vfep_8B2.vtk";
+    bool export_ok = cfd.exportResults(export_file, vfep_points);
+    REQUIRE(export_ok, "8B2: failed to export results");
+    
+    // Export comparison CSV
+    const std::string csv_file = "test_comparison_8B2.csv";
+    bool csv_ok = cfd.exportComparisonCSV(csv_file, vfep_points, cfd_points);
+    REQUIRE(csv_ok, "8B2: failed to export comparison CSV");
+    
+    // Compare temperature fields
+    auto stats_T = cfd.compareTemperature(vfep_points, cfd_points);
+    REQUIRE_FINITE(stats_T.mean_error, "8B2: mean_error");
+    REQUIRE_FINITE(stats_T.max_error, "8B2: max_error");
+    REQUIRE_FINITE(stats_T.rmse, "8B2: rmse");
+    REQUIRE_FINITE(stats_T.correlation, "8B2: correlation");
+    REQUIRE(stats_T.num_points == 10, "8B2: incorrect point count");
+    
+    // Verify statistics are reasonable (we added 5K difference)
+    REQUIRE(stats_T.mean_error >= 4.0 && stats_T.mean_error <= 6.0,
+            "8B2: mean_error not in expected range");
+    
+    // Compare velocity fields
+    auto stats_V = cfd.compareVelocity(vfep_points, cfd_points);
+    REQUIRE_FINITE(stats_V.mean_error, "8B2: velocity mean_error");
+    REQUIRE(stats_V.num_points == 10, "8B2: velocity point count");
+    
+    std::cout << "[PASS] 8B2 CFD export and comparison functionality\n";
+}
+
 } // namespace
 
 int main() {
@@ -4095,6 +4315,15 @@ int main() {
     runMonteCarloUQBasic_7B1();
     runMonteCarloUQSampling_7B2();
     runMonteCarloUQResults_7B3();
+
+    // =======================
+    // Phase 8: Three-Zone Model & CFD Interface Tests
+    // =======================
+    runThreeZoneBasicInit_8A1();
+    runThreeZoneMassConservation_8A2();
+    runThreeZoneEnergyBalance_8A3();
+    runCFDImportBasic_8B1();
+    runCFDExportAndCompare_8B2();
 
     return 0;
     

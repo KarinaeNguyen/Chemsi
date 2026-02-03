@@ -9,6 +9,8 @@ CMakeCache.txt
 CMakeFiles/
 *.ninja
 .ninja_*
+cmake_*.txt
+configure.log
 
 # MSVC / Visual Studio
 .vs/
@@ -21,5 +23,24 @@ CMakeFiles/
 # Backup files
 *.bak
 
+# Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+
+# Test results and outputs
+test_results/
+*.log
+
 # Third-party deps (if generated)
 third_party/
+
+# Assets (STL files, imgui config)
+assets/
+
+# IDE settings
+.vscode/
+
+# Shell/batch scripts
+*.sh
+*.bat

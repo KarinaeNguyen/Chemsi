@@ -55,6 +55,17 @@ target_include_directories(UncertaintyQuantification PUBLIC ${CMAKE_SOURCE_DIR}/
 target_link_libraries(UncertaintyQuantification PUBLIC chemsi)
 
 # ============================================================
+# Phase 8: Three-Zone Model & CFD Interface
+# ============================================================
+add_library(ThreeZoneModel src/ThreeZoneModel.cpp)
+target_include_directories(ThreeZoneModel PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(ThreeZoneModel PUBLIC chemsi)
+
+add_library(CFDInterface src/CFDInterface.cpp)
+target_include_directories(CFDInterface PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(CFDInterface PUBLIC chemsi)
+
+# ============================================================
 # gRPC + Protobuf (Unity integration)
 # ============================================================
 if (CHEMSI_ENABLE_GRPC)
@@ -226,7 +237,7 @@ target_link_libraries(TestAtom PRIVATE chemsi)
 add_test(NAME TestAtom COMMAND TestAtom)
 
 add_executable(NumericIntegrity tests/TestNumericIntegrity.cpp)
-target_link_libraries(NumericIntegrity PRIVATE chemsi SensitivityAnalysis UncertaintyQuantification)
+target_link_libraries(NumericIntegrity PRIVATE chemsi SensitivityAnalysis UncertaintyQuantification ThreeZoneModel CFDInterface)
 add_test(NAME NumericIntegrity COMMAND NumericIntegrity)
 
 # MSVC Debug stack overflow fix for NumericIntegrity
