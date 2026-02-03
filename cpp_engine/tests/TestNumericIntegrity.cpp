@@ -14,6 +14,7 @@
 #include "UncertaintyQuantification.h"
 #include "ThreeZoneModel.h"
 #include "CFDInterface.h"
+#include "RadiationModel.h"
 
 namespace {
 
@@ -4236,6 +4237,183 @@ static void runCFDExportAndCompare_8B2()
     std::cout << "[PASS] 8B2 CFD export and comparison functionality\n";
 }
 
+// =======================
+// Phase 9A: Radiation Model Tests
+// =======================
+
+static void runRadiationViewFactors_9A1()
+{
+    // Test view factor calculation
+    vfep::RadiationModel rad;
+    
+    // Test case 1: Single surface (planar surface view factor to itself should be 0)
+    vfep::Surface s1(10.0f, 400.0f, 0.9f, 0.9f, 0);
+    rad.addSurface(s1);
+    rad.calculateViewFactors();
+    
+    float F_11 = rad.getViewFactor(0, 0);
+    REQUIRE(F_11 < 0.01f, "9A1: planar surface self-view factor should be near 0");
+    
+    // Test case 2: Two perpendicular walls
+    rad.reset();
+    vfep::Surface s_hot(10.0f, 400.0f, 0.9f, 0.9f, 0);  // Hot surface
+    vfep::Surface s_cold(50.0f, 300.0f, 0.8f, 0.8f, 0); // Cold wall
+    
+    int id_hot = rad.addSurface(s_hot);
+    int id_cold = rad.addSurface(s_cold);
+    REQUIRE(id_hot == 0, "9A1: first surface should have ID 0");
+    REQUIRE(id_cold == 1, "9A1: second surface should have ID 1");
+    
+    REQUIRE(rad.getNumSurfaces() == 2, "9A1: should have 2 surfaces");
+    
+    rad.calculateViewFactors();
+    
+    float F_hot_to_cold = rad.getViewFactor(0, 1);
+    float F_cold_to_hot = rad.getViewFactor(1, 0);
+    
+    // View factors should be in [0, 1]
+    REQUIRE(F_hot_to_cold >= 0.0f && F_hot_to_cold <= 1.0f, "9A1: F_01 out of bounds");
+    REQUIRE(F_cold_to_hot >= 0.0f && F_cold_to_hot <= 1.0f, "9A1: F_10 out of bounds");
+    
+    // Reciprocity rule: F_ij * A_i = F_ji * A_j
+    float A_hot = 10.0f;
+    float A_cold = 50.0f;
+    float LHS = F_hot_to_cold * A_hot;
+    float RHS = F_cold_to_hot * A_cold;
+    float reciprocity_error = std::abs(LHS - RHS) / std::abs(RHS);
+    REQUIRE(reciprocity_error < 0.01f, "9A1: reciprocity rule violated");
+    
+    // Test case 3: View factors should sum close to 1.0 for each surface
+    // (in a finite view factor context)
+    float sum_from_hot = rad.getViewFactor(0, 0) + rad.getViewFactor(0, 1);
+    REQUIRE(sum_from_hot > 0.5f && sum_from_hot <= 1.01f, "9A1: view factor sum inconsistent");
+    
+    std::cout << "[PASS] 9A1 Radiation view factor calculation\n";
+}
+
+static void runRadiativeHeatExchange_9A2()
+{
+    // Test radiative heat flux calculation
+    vfep::RadiationModel rad;
+    
+    // Create two surfaces at different temperatures
+    vfep::Surface s_hot(10.0f, 400.0f, 0.9f, 0.9f, 0);   // Hot: 400 K
+    vfep::Surface s_cold(50.0f, 300.0f, 0.8f, 0.8f, 0);  // Cold: 300 K
+    
+    int id_hot = rad.addSurface(s_hot);
+    int id_cold = rad.addSurface(s_cold);
+    
+    rad.calculateViewFactors();
+    
+    // Get radiative heat fluxes
+    float q_hot_to_cold = rad.getRadiativeHeatFlux(id_hot, id_cold);
+    float q_cold_to_hot = rad.getRadiativeHeatFlux(id_cold, id_hot);
+    
+    // Hot surface should radiate more than cold surface
+    REQUIRE(q_hot_to_cold > q_cold_to_hot, 
+            "9A2: hot surface should radiate more than cold surface");
+    
+    // Net heat should be from hot to cold (positive when from hot)
+    float q_net = q_hot_to_cold - q_cold_to_hot;
+    REQUIRE(q_net > 0.0f, "9A2: net heat should flow from hot to cold");
+    
+    // Verify Stefan-Boltzmann scaling: Q ∝ (T1^4 - T2^4)
+    // At ΔT = 100K, F = 0.5, A = 10m², ε = 0.9, we expect roughly:
+    // Q ~ 0.5 * 0.9 * 5.67e-8 * 10 * (400^4 - 300^4) ~ few kW
+    float sigma = vfep::RadiationModel::STEFAN_BOLTZMANN;
+    float T_hot_K = 400.0f;
+    float T_cold_K = 300.0f;
+    float T_diff_quartic = std::pow(T_hot_K, 4) - std::pow(T_cold_K, 4);
+    
+    // Rough estimate (ignoring view factor for magnitude check)
+    float expected_magnitude = sigma * 10.0f * T_diff_quartic;
+    REQUIRE(q_hot_to_cold > 0.0f && q_hot_to_cold < expected_magnitude * 10.0f, 
+            "9A2: heat flux magnitude unrealistic");
+    
+    // Test at thermal equilibrium: same temperature → equal heat exchange
+    rad.reset();
+    vfep::Surface s_eq1(20.0f, 350.0f, 0.85f, 0.85f, 0);
+    vfep::Surface s_eq2(30.0f, 350.0f, 0.85f, 0.85f, 0);
+    
+    int id_eq1 = rad.addSurface(s_eq1);
+    int id_eq2 = rad.addSurface(s_eq2);
+    
+    rad.calculateViewFactors();
+    
+    float q_eq_1_to_2 = rad.getRadiativeHeatFlux(id_eq1, id_eq2);
+    float q_eq_2_to_1 = rad.getRadiativeHeatFlux(id_eq2, id_eq1);
+    
+    // At thermal equilibrium, net heat should be near zero
+    float q_eq_net = std::abs(q_eq_1_to_2 - q_eq_2_to_1);
+    REQUIRE(q_eq_net < 1.0f, "9A2: net heat at equilibrium should be near zero");
+    
+    std::cout << "[PASS] 9A2 Radiation radiative heat exchange\n";
+}
+
+static void runSmokeAbsorption_9A3()
+{
+    // Test smoke absorption and transmissivity
+    vfep::RadiationModel rad;
+    
+    // Create two surfaces separated by distance
+    vfep::Surface s_source(5.0f, 450.0f, 0.95f, 0.95f, 0);
+    vfep::Surface s_target(20.0f, 280.0f, 0.8f, 0.8f, 0);
+    
+    int id_src = rad.addSurface(s_source);
+    int id_tgt = rad.addSurface(s_target);
+    
+    // Test 1: No smoke - should allow full radiation
+    rad.setSmokeMeanBeamLength(0.0f);
+    rad.calculateViewFactors();
+    
+    float tau_clear = rad.getTransmissivity(5.0f);
+    REQUIRE(std::abs(tau_clear - 1.0f) < 0.001f, "9A3: transmissivity should be 1.0 with no smoke");
+    
+    // Get heat flux with no smoke
+    float q_no_smoke = rad.getRadiativeHeatFlux(id_src, id_tgt);
+    
+    // Test 2: Light smoke - should reduce radiation
+    rad.setSmokeMeanBeamLength(0.1f);  // Light smoke
+    float tau_light = rad.getTransmissivity(5.0f);
+    REQUIRE(tau_light < 1.0f && tau_light > 0.0f, 
+            "9A3: transmissivity with smoke should be in (0, 1)");
+    
+    // Beer-Lambert law: τ = exp(-κ*L)
+    // With κ=0.1, L=5: τ = exp(-0.5) ≈ 0.606
+    float expected_tau_light = std::exp(-0.1f * 5.0f);
+    float tau_error_light = std::abs(tau_light - expected_tau_light) / expected_tau_light;
+    REQUIRE(tau_error_light < 0.05f, "9A3: light smoke transmissivity doesn't match Beer-Lambert");
+    
+    float q_light_smoke = rad.getRadiativeHeatFlux(id_src, id_tgt);
+    REQUIRE(q_light_smoke < q_no_smoke, "9A3: smoke should reduce radiation");
+    
+    // Test 3: Heavy smoke - should block radiation
+    rad.setSmokeMeanBeamLength(0.5f);  // Heavy smoke
+    float tau_heavy = rad.getTransmissivity(5.0f);
+    
+    // With κ=0.5, L=5: τ = exp(-2.5) ≈ 0.082
+    float expected_tau_heavy = std::exp(-0.5f * 5.0f);
+    float tau_error_heavy = std::abs(tau_heavy - expected_tau_heavy) / expected_tau_heavy;
+    REQUIRE(tau_error_heavy < 0.05f, "9A3: heavy smoke transmissivity doesn't match Beer-Lambert");
+    
+    // Heavy smoke should have very low transmissivity
+    REQUIRE(tau_heavy < 0.2f, "9A3: heavy smoke should have low transmissivity");
+    
+    float q_heavy_smoke = rad.getRadiativeHeatFlux(id_src, id_tgt);
+    REQUIRE(q_heavy_smoke < q_light_smoke, "9A3: heavier smoke should reduce radiation more");
+    
+    // Test 4: Verify transmissivity decreases with distance through smoke
+    rad.setSmokeMeanBeamLength(0.2f);
+    float tau_1m = rad.getTransmissivity(1.0f);
+    float tau_5m = rad.getTransmissivity(5.0f);
+    float tau_10m = rad.getTransmissivity(10.0f);
+    
+    REQUIRE(tau_1m > tau_5m && tau_5m > tau_10m, 
+            "9A3: transmissivity should decrease with distance");
+    
+    std::cout << "[PASS] 9A3 Radiation smoke absorption and transmissivity\n";
+}
+
 } // namespace
 
 int main() {
@@ -4324,6 +4502,13 @@ int main() {
     runThreeZoneEnergyBalance_8A3();
     runCFDImportBasic_8B1();
     runCFDExportAndCompare_8B2();
+
+    // =======================
+    // Phase 9A: Radiation Model Tests
+    // =======================
+    runRadiationViewFactors_9A1();
+    runRadiativeHeatExchange_9A2();
+    runSmokeAbsorption_9A3();
 
     return 0;
     

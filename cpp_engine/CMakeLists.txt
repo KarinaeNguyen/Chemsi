@@ -66,6 +66,13 @@ target_include_directories(CFDInterface PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(CFDInterface PUBLIC chemsi)
 
 # ============================================================
+# Phase 9: Advanced Physics (Radiation, Multi-Compartment, etc.)
+# ============================================================
+add_library(RadiationModel src/RadiationModel.cpp)
+target_include_directories(RadiationModel PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(RadiationModel PUBLIC chemsi)
+
+# ============================================================
 # gRPC + Protobuf (Unity integration)
 # ============================================================
 if (CHEMSI_ENABLE_GRPC)
@@ -237,7 +244,7 @@ target_link_libraries(TestAtom PRIVATE chemsi)
 add_test(NAME TestAtom COMMAND TestAtom)
 
 add_executable(NumericIntegrity tests/TestNumericIntegrity.cpp)
-target_link_libraries(NumericIntegrity PRIVATE chemsi SensitivityAnalysis UncertaintyQuantification ThreeZoneModel CFDInterface)
+target_link_libraries(NumericIntegrity PRIVATE chemsi SensitivityAnalysis UncertaintyQuantification ThreeZoneModel CFDInterface RadiationModel)
 add_test(NAME NumericIntegrity COMMAND NumericIntegrity)
 
 # MSVC Debug stack overflow fix for NumericIntegrity
