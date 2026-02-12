@@ -16,16 +16,18 @@ if (-not (Test-Path $BUILD)) {
 # CMake configure
 Set-Location $BUILD
 Write-Host "Configuring CMake..." -ForegroundColor Cyan
-& cmake.exe -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DEnable_VIS=ON "$SRC"
+& cmake.exe -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release "$SRC"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "CMAKE FAILED" -ForegroundColor Red
     exit 1
 }
 
-# Build
-Write-Host "Building with Ninja..." -ForegroundColor Cyan
-& ninja.exe
+# Build with parallel jobs
+Write-Host "Building with MinGW Make (parallel)..." -ForegroundColor Cyan
+$cores = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
+Write-Host "Using $cores parallel jobs" -ForegroundColor Yellow
+& mingw32-make.exe -j $cores
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "BUILD FAILED" -ForegroundColor Red

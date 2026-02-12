@@ -845,6 +845,29 @@ int main(int argc, char** argv) {
         return fail("glfwCreateWindow failed");
     }
 
+#ifdef _WIN32
+    // Set window icon from logo.ico file
+    {
+        std::string iconPath = "../../Image/logo.ico";
+        HICON hIcon = (HICON)LoadImageA(NULL, iconPath.c_str(), IMAGE_ICON, 
+                                        0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+        if (!hIcon) {
+            // Try alternative path from build directory
+            iconPath = "../Image/logo.ico";
+            hIcon = (HICON)LoadImageA(NULL, iconPath.c_str(), IMAGE_ICON,
+                                     0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+        }
+        
+        if (hIcon) {
+            HWND hwnd = glfwGetWin32Window(window);
+            if (hwnd) {
+                SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+                SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+            }
+        }
+    }
+#endif
+
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // vsync
 

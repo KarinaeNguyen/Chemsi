@@ -28,10 +28,15 @@ struct FlammableSurface {
     float hrrpua_W_m2;            // Heat release rate per unit area
     bool is_burning;               // Flame present?
     float burn_time_s;             // How long burning
+    float fuel_load_kg;            // Remaining fuel mass
+    float mass_loss_rate_kg_s;     // Fuel mass loss rate while burning
+    float initial_fuel_load_kg;    // Initial fuel mass for decay tracking
     
     FlammableSurface() : x_m(0), y_m(0), z_m(0), area_m2(1.0f),
                          temperature_K(298.15f), ignition_temp_K(573.15f),
-                         hrrpua_W_m2(500.0f), is_burning(false), burn_time_s(0) {}
+                         hrrpua_W_m2(500.0f), is_burning(false), burn_time_s(0),
+                         fuel_load_kg(1.0f), mass_loss_rate_kg_s(0.02f),
+                         initial_fuel_load_kg(1.0f) {}
 };
 
 class FlameSpreadModel {
@@ -53,6 +58,7 @@ public:
     // Heat feedback
     float getTotalHeatReleaseRate() const;
     float getHeatReleaseRateFromSurface(int surface_id) const;
+    float getSurfaceHeatFluxWm2(int surface_id) const;
     
     // Status queries
     bool isSurfaceBurning(int surface_id) const;
@@ -65,7 +71,7 @@ private:
     
     void checkIgnitionCriteria(float dt);
     bool canIgnite(int surface_id) const;
-    void propagateFlame();
+    void propagateFlame(float dt);
 };
 
 } // namespace vfep

@@ -9,6 +9,23 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Speed optimizations
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pipe")
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)  # LTO
+endif()
+
+# Precompiled headers for faster builds
+set(PCH_HEADERS
+  <vector>
+  <string>
+  <memory>
+  <cmath>
+  <iostream>
+  <fstream>
+  <stdexcept>
+)
+
 # ============================================================
 # Build options
 # ============================================================
@@ -42,6 +59,7 @@ endif()
 
 add_library(chemsi ${CHEMSI_CORE_SRCS})
 target_include_directories(chemsi PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_precompile_headers(chemsi PRIVATE ${PCH_HEADERS})
 
 # ============================================================
 # Phase 7: Sensitivity Analysis (library + tool)
@@ -71,6 +89,18 @@ target_link_libraries(CFDInterface PUBLIC chemsi)
 add_library(RadiationModel src/RadiationModel.cpp)
 target_include_directories(RadiationModel PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(RadiationModel PUBLIC chemsi)
+
+add_library(CompartmentNetwork src/CompartmentNetwork.cpp)
+target_include_directories(CompartmentNetwork PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(CompartmentNetwork PUBLIC chemsi ThreeZoneModel)
+
+add_library(CFDCoupler src/CFDCoupler.cpp)
+target_include_directories(CFDCoupler PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(CFDCoupler PUBLIC chemsi ThreeZoneModel CFDInterface)
+
+add_library(FlameSpreadModel src/FlameSpreadModel.cpp)
+target_include_directories(FlameSpreadModel PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(FlameSpreadModel PUBLIC chemsi)
 
 # ============================================================
 # gRPC + Protobuf (Unity integration)
@@ -222,7 +252,11 @@ endif()
 # ============================================================
 # Main simulation (console)
 # ============================================================
-add_executable(VFEP_Sim src/main.cpp)
+if(WIN32)
+  add_executable(VFEP_Sim src/main.cpp resources/vfep_sim.rc)
+else()
+  add_executable(VFEP_Sim src/main.cpp)
+endif()
 target_link_libraries(VFEP_Sim PRIVATE chemsi)
 
 add_executable(ValidationSuite src/ValidationSuite.cpp)
@@ -243,8 +277,12 @@ add_executable(TestAtom tests/TestAtom.cpp)
 target_link_libraries(TestAtom PRIVATE chemsi)
 add_test(NAME TestAtom COMMAND TestAtom)
 
-add_executable(NumericIntegrity tests/TestNumericIntegrity.cpp)
-target_link_libraries(NumericIntegrity PRIVATE chemsi SensitivityAnalysis UncertaintyQuantification ThreeZoneModel CFDInterface RadiationModel)
+if(WIN32)
+  add_executable(NumericIntegrity tests/TestNumericIntegrity.cpp resources/numeric_integrity.rc)
+else()
+  add_executable(NumericIntegrity tests/TestNumericIntegrity.cpp)
+endif()
+target_link_libraries(NumericIntegrity PRIVATE chemsi SensitivityAnalysis UncertaintyQuantification ThreeZoneModel CFDInterface RadiationModel CompartmentNetwork CFDCoupler FlameSpreadModel)
 add_test(NAME NumericIntegrity COMMAND NumericIntegrity)
 
 # MSVC Debug stack overflow fix for NumericIntegrity
@@ -323,7 +361,11 @@ if (CHEMSI_BUILD_VIS)
     OpenGL::GL
   )
 
-  add_executable(VFEP_Vis vis/main_vis.cpp)
+  if(WIN32)
+    add_executable(VFEP_Vis vis/main_vis.cpp resources/vfep.rc)
+  else()
+    add_executable(VFEP_Vis vis/main_vis.cpp)
+  endif()
   set_target_properties(VFEP_Vis PROPERTIES OUTPUT_NAME "VFEP")
 
   target_link_libraries(VFEP_Vis PRIVATE chemsi imgui_lib)

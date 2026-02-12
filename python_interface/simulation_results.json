@@ -1,0 +1,152 @@
+{
+  "SC001": {
+    "scenario_id": "SC001",
+    "peak_HUL_temp": 721.5714285714286,
+    "peak_HRR": 500.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.14904761904761904,
+    "suppression_time": null,
+    "time_to_peak_HRR": 185.0,
+    "total_heat_released": 180.0
+  },
+  "SC002": {
+    "scenario_id": "SC002",
+    "peak_HUL_temp": 635.8571428571429,
+    "peak_HRR": 400.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.16123809523809524,
+    "suppression_time": 60,
+    "time_to_peak_HRR": 185.0,
+    "total_heat_released": 144.0
+  },
+  "SC003": {
+    "scenario_id": "SC003",
+    "peak_HUL_temp": 645.9411764705883,
+    "peak_HRR": 1200.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.14904761904761904,
+    "suppression_time": null,
+    "time_to_peak_HRR": 192.0,
+    "total_heat_released": 432.0
+  },
+  "SC004": {
+    "scenario_id": "SC004",
+    "peak_HUL_temp": 656.6363636363636,
+    "peak_HRR": 800.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.16936507936507936,
+    "suppression_time": null,
+    "time_to_peak_HRR": 192.0,
+    "total_heat_released": 288.0
+  },
+  "SC005": {
+    "scenario_id": "SC005",
+    "peak_HUL_temp": 668.0,
+    "peak_HRR": 1200.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.14904761904761904,
+    "suppression_time": 60,
+    "time_to_peak_HRR": 192.0,
+    "total_heat_released": 432.0
+  },
+  "SC006": {
+    "scenario_id": "SC006",
+    "peak_HUL_temp": 593.0,
+    "peak_HRR": 3000.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.17342857142857143,
+    "suppression_time": 54.0,
+    "time_to_peak_HRR": 230.0,
+    "total_heat_released": 1080.0
+  },
+  "SC007": {
+    "scenario_id": "SC007",
+    "peak_HUL_temp": 563.0,
+    "peak_HRR": 4500.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.15514285714285714,
+    "suppression_time": null,
+    "time_to_peak_HRR": 230.0,
+    "total_heat_released": 1620.0
+  },
+  "SC008": {
+    "scenario_id": "SC008",
+    "peak_HUL_temp": 593.0,
+    "peak_HRR": 1500.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.16428571428571428,
+    "suppression_time": null,
+    "time_to_peak_HRR": 200.0,
+    "total_heat_released": 540.0
+  },
+  "SC009": {
+    "scenario_id": "SC009",
+    "peak_HUL_temp": 493.0,
+    "peak_HRR": 1200.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.17342857142857143,
+    "suppression_time": 60,
+    "time_to_peak_HRR": 200.0,
+    "total_heat_released": 432.0
+  },
+  "SC010": {
+    "scenario_id": "SC010",
+    "peak_HUL_temp": 581.4615384615385,
+    "peak_HRR": 5000.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.1719047619047619,
+    "suppression_time": null,
+    "time_to_peak_HRR": 260.0,
+    "total_heat_released": 1800.0
+  },
+  "SC011": {
+    "scenario_id": "SC011",
+    "peak_HUL_temp": 574.25,
+    "peak_HRR": 600.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.16428571428571428,
+    "suppression_time": 60,
+    "time_to_peak_HRR": 188.0,
+    "total_heat_released": 216.0
+  },
+  "SC012": {
+    "scenario_id": "SC012",
+    "peak_HUL_temp": 730.5,
+    "peak_HRR": 350.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.15666666666666665,
+    "suppression_time": null,
+    "time_to_peak_HRR": 184.0,
+    "total_heat_released": 126.0
+  },
+  "SC013": {
+    "scenario_id": "SC013",
+    "peak_HUL_temp": 485.3076923076923,
+    "peak_HRR": 250.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.15920634920634918,
+    "suppression_time": null,
+    "time_to_peak_HRR": 183.0,
+    "total_heat_released": 90.0
+  },
+  "SC014": {
+    "scenario_id": "SC014",
+    "peak_HUL_temp": 533.0,
+    "peak_HRR": 800.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.16123809523809524,
+    "suppression_time": 60,
+    "time_to_peak_HRR": 190.0,
+    "total_heat_released": 288.0
+  },
+  "SC015": {
+    "scenario_id": "SC015",
+    "peak_HUL_temp": 737.4444444444445,
+    "peak_HRR": 2000.0,
+    "time_to_flashover": null,
+    "final_O2_concentration": 0.1287301587301587,
+    "suppression_time": null,
+    "time_to_peak_HRR": 195.0,
+    "total_heat_released": 720.0
+  }
+}

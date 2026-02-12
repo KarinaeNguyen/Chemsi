@@ -266,14 +266,32 @@ bool CFDInterface::generateMockCFD(const std::string& output_vtk,
     }
     
     CFDInterface cfd;
+    cfd.setGridPoints(points, nx, ny, nz, 0.0, 0.0, 0.0, dx, dy, dz);
     return cfd.writeVTK(output_vtk, points);
 }
 
 void CFDInterface::clear() {
     grid_.clear();
     nx_ = ny_ = nz_ = 0;
+    dx_ = dy_ = dz_ = 0.0;
+    x_min_ = y_min_ = z_min_ = 0.0;
 }
 
+void CFDInterface::setGridPoints(const std::vector<GridPoint>& points,
+                                int nx, int ny, int nz,
+                                double x_min, double y_min, double z_min,
+                                double dx, double dy, double dz) {
+    grid_ = points;
+    nx_ = nx;
+    ny_ = ny;
+    nz_ = nz;
+    x_min_ = x_min;
+    y_min_ = y_min;
+    z_min_ = z_min;
+    dx_ = dx;
+    dy_ = dy;
+    dz_ = dz;
+}
 bool CFDInterface::parseVTK(const std::string& vtk_file) {
     std::ifstream ifs(vtk_file);
     if (!ifs.is_open()) return false;

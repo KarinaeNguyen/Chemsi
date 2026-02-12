@@ -17,6 +17,7 @@
 #define CHEMSI_COMPARTMENT_NETWORK_H
 
 #include <vector>
+#include <string>
 #include "ThreeZoneModel.h"
 
 namespace vfep {
@@ -37,6 +38,15 @@ struct Opening {
 
 class CompartmentNetwork {
 public:
+    struct ExchangeSummary {
+        float mass_in_kg = 0.0f;
+        float mass_out_kg = 0.0f;
+        float ach = 0.0f;
+        float net_exchange_W = 0.0f;
+        float enthalpy_in_J = 0.0f;
+        float enthalpy_out_J = 0.0f;
+    };
+
     CompartmentNetwork();
     ~CompartmentNetwork();
     
@@ -53,6 +63,8 @@ public:
     const ThreeZoneModel& getCompartment(int id) const;
     float getInterCompartmentFlow(int from_id, int to_id) const;
     float getCompartmentPressure(int id) const;
+    const std::vector<ExchangeSummary>& getLastExchangeSummary() const;
+    bool exportExchangeCSV(const std::string& filename, float time_s) const;
     
     // TODO: Full implementation
     
@@ -61,6 +73,7 @@ private:
     std::vector<Opening> openings_;
     std::vector<std::vector<float>> mass_flow_;  // kg/s between compartments
     std::vector<float> pressures_;               // Pa
+    std::vector<ExchangeSummary> last_exchange_;
     
     void calculatePressures();
     void calculateMassFlow();

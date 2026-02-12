@@ -85,6 +85,13 @@ void RadiationModel::setSurfaceEmissivity(int surface_id, float emissivity) {
     getSurface(surface_id).emissivity = emissivity;
 }
 
+void RadiationModel::setSurfaceAbsorptivity(int surface_id, float absorptivity) {
+    if (absorptivity < 0.0f || absorptivity > 1.0f) {
+        throw std::invalid_argument("Absorptivity must be in [0, 1]");
+    }
+    getSurface(surface_id).absorptivity = absorptivity;
+}
+
 // ============================================================================
 // VIEW FACTOR CALCULATION
 // ============================================================================
@@ -94,19 +101,71 @@ void RadiationModel::calculateViewFactors() {
     
     // Initialize view factor matrix
     view_factors_.assign(n, std::vector<float>(n, 0.0f));
-    
-    // Compute view factors
+
+    if (n == 0) {
+        view_factors_valid_ = true;
+        return;
+    }
+    if (n == 1) {
+        view_factors_[0][0] = 0.0f;
+        view_factors_valid_ = true;
+        return;
+    }
+
+    // Build a symmetric exchange matrix S_ij that enforces reciprocity by design.
+    // For i != j: S_ij = (A_i * A_j) / (A_i + A_j)
+    std::vector<std::vector<float>> exchange(n, std::vector<float>(n, 0.0f));
     for (int i = 0; i < n; ++i) {
+        for (int j = i + 1; j < n; ++j) {
+            float denom = surfaces_[i].area_m2 + surfaces_[j].area_m2;
+            float value = (denom > 0.0f)
+                ? (surfaces_[i].area_m2 * surfaces_[j].area_m2 / denom)
+                : 0.0f;
+            exchange[i][j] = value;
+            exchange[j][i] = value;
+        }
+    }
+
+    // Optional global scaling to keep all row sums <= 1.0 without breaking reciprocity.
+    float max_row_sum = 0.0f;
+    for (int i = 0; i < n; ++i) {
+        float area_i = surfaces_[i].area_m2;
+        if (area_i <= 0.0f) {
+            continue;
+        }
+        float row_sum = 0.0f;
         for (int j = 0; j < n; ++j) {
-            view_factors_[i][j] = computeViewFactor(i, j);
+            if (i != j) {
+                row_sum += exchange[i][j] / area_i;
+            }
+        }
+        if (row_sum > max_row_sum) {
+            max_row_sum = row_sum;
+        }
+    }
+
+    float scale_all = (max_row_sum > 1.0f) ? (1.0f / max_row_sum) : 1.0f;
+    if (scale_all < 1.0f) {
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                exchange[i][j] *= scale_all;
+            }
+        }
+    }
+
+    // Convert exchange matrix to view factors: F_ij = S_ij / A_i.
+    for (int i = 0; i < n; ++i) {
+        float area_i = surfaces_[i].area_m2;
+        if (area_i <= 0.0f) {
+            continue;
+        }
+        for (int j = 0; j < n; ++j) {
+            view_factors_[i][j] = (i == j) ? 0.0f : (exchange[i][j] / area_i);
         }
     }
     
-    // Apply reciprocity rule and validation
-    applyReciprocityRule();
-    validateViewFactorSum();
-    
     view_factors_valid_ = true;
+    return;
 }
 
 float RadiationModel::computeViewFactor(int from_id, int to_id) const {
@@ -203,6 +262,13 @@ float RadiationModel::getRadiativeHeatFlux(int from_id, int to_id) const {
     if (!view_factors_valid_) {
         throw std::runtime_error("View factors not calculated");
     }
+
+    if (from_id < 0 || from_id >= static_cast<int>(surfaces_.size())) {
+        throw std::out_of_range("Invalid source surface ID");
+    }
+    if (to_id < 0 || to_id >= static_cast<int>(surfaces_.size())) {
+        throw std::out_of_range("Invalid target surface ID");
+    }
     
     const Surface& from = surfaces_[from_id];
     const Surface& to = surfaces_[to_id];
@@ -211,11 +277,11 @@ float RadiationModel::getRadiativeHeatFlux(int from_id, int to_id) const {
     float t_trans = getTransmissivity(1.0f);  // Simplistic mean beam length
     
     // Radiative heat flux with participating media
-    // Q_ij = F_ij * ε_i * σ * A_i * (T_i^4 - T_j^4) * τ_trans
+    // Q_ij = F_ij * ε_i * α_j * σ * A_i * (T_i^4 - T_j^4) * τ_trans
     float t_i4 = from.temperature_K * from.temperature_K * from.temperature_K * from.temperature_K;
     float t_j4 = to.temperature_K * to.temperature_K * to.temperature_K * to.temperature_K;
     
-    float q = f_ij * from.emissivity * STEFAN_BOLTZMANN * from.area_m2 * 
+    float q = f_ij * from.emissivity * to.absorptivity * STEFAN_BOLTZMANN * from.area_m2 * 
               (t_i4 - t_j4) * t_trans;
     
     return q;
@@ -232,7 +298,6 @@ float RadiationModel::getRadiativeHeatExchange(int surface_id) const {
     for (int j = 0; j < n; ++j) {
         if (j != surface_id) {
             q_net += getRadiativeHeatFlux(surface_id, j);
-            q_net -= getRadiativeHeatFlux(j, surface_id);
         }
     }
     

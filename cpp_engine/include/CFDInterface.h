@@ -136,11 +136,34 @@ public:
      * @return Number of grid points
      */
     size_t gridPointCount() const { return grid_.size(); }
+
+    const std::vector<GridPoint>& gridPoints() const { return grid_; }
+    int gridNx() const { return nx_; }
+    int gridNy() const { return ny_; }
+    int gridNz() const { return nz_; }
+    double gridDx() const { return dx_; }
+    double gridDy() const { return dy_; }
+    double gridDz() const { return dz_; }
+    double gridXMin() const { return x_min_; }
+    double gridYMin() const { return y_min_; }
+    double gridZMin() const { return z_min_; }
     
     /**
      * @brief Clear all loaded data
      */
     void clear();
+
+    /**
+     * @brief Set grid points directly (internal use for coupling)
+     * @param points Grid points (structured layout)
+     * @param nx,ny,nz Grid dimensions
+     * @param x_min,y_min,z_min Grid minimum corner
+     * @param dx,dy,dz Grid spacing
+     */
+    void setGridPoints(const std::vector<GridPoint>& points,
+                      int nx, int ny, int nz,
+                      double x_min, double y_min, double z_min,
+                      double dx, double dy, double dz);
     
 private:
     std::vector<GridPoint> grid_;  ///< Loaded grid points

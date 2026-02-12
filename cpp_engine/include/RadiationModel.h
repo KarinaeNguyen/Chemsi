@@ -127,6 +127,14 @@ public:
      * @param emissivity New emissivity (0.0-1.0)
      */
     void setSurfaceEmissivity(int surface_id, float emissivity);
+
+    /**
+     * @brief Update surface absorptivity
+     * 
+     * @param surface_id Which surface
+     * @param absorptivity New absorptivity (0.0-1.0)
+     */
+    void setSurfaceAbsorptivity(int surface_id, float absorptivity);
     
     // ============================================================================
     // VIEW FACTOR CALCULATION
@@ -173,7 +181,7 @@ public:
     /**
      * @brief Get radiative heat flux FROM surface i TO surface j
      * 
-     * Computes Q_ij = F_ij * ε_i * σ * A_i * (T_i^4 - T_j^4)
+    * Computes Q_ij = F_ij * ε_i * α_j * σ * A_i * (T_i^4 - T_j^4)
      * 
      * Positive value: heat flows from i to j
      * Negative value: heat flows from j to i

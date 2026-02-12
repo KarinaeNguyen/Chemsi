@@ -18,6 +18,7 @@
 
 #include "CFDInterface.h"
 #include "ThreeZoneModel.h"
+#include <string>
 
 namespace vfep {
 
@@ -45,6 +46,10 @@ public:
     // Get coupled properties
     float getZoneTemperatureFromCFD(int zone_id) const;
     float getZoneVelocityFromCFD(int zone_id) const;
+
+    bool exportCouplingCSV(const std::string& filename,
+                           float time_s,
+                           const ThreeZoneModel& zones) const;
     
     // TODO: Full implementation
     
@@ -53,9 +58,11 @@ private:
     float last_sync_time_;
     float loose_coupling_dt_;
     int remesh_frequency_;
+    int sync_count_;
     
     void mapZoneToCFDDomain(const ThreeZoneModel& zones);
     void mapCFDDomainToZones();
+    void runMockCFDStep(float sim_time_s);
 };
 
 } // namespace vfep
