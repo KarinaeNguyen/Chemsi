@@ -4,7 +4,10 @@ import unittest
 
 import numpy as np
 
-from surrogate_model import SurrogateModel, TrainingDataGenerator
+try:
+    from .surrogate_model import SurrogateModel, TrainingDataGenerator
+except ImportError:
+    from surrogate_model import SurrogateModel, TrainingDataGenerator
 
 
 class TestSurrogateModel(unittest.TestCase):

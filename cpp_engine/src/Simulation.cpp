@@ -498,7 +498,7 @@ void Simulation::resetToDataCenterRackScenario() {
     // (Will be normalized implicitly by aero module.)
     nozzle_dir_unit_scenario_ = {0.7, -0.15, 0.7};
     nozzle_pos_m_ = {-2.0, 1.5, -2.0};
-    hotspot_pos_m_ = {0.0, 0.6, 0.41};
+    hotspot_pos_m_ = {0.0, 0.6, 0.59};
     ignition_seeded_ = false;
     ignition_seed_u32_ = 0u;
     nozzle_dir_unit_ = nozzle_dir_unit_scenario_;
@@ -1122,10 +1122,10 @@ void Simulation::commandIgniteOrIncreasePyrolysis() {
         std::uint32_t s = ignition_seed_u32_;
 
         // Rack-front ignition volume (meters, world frame).
-        // Keep fire on the rack front face (z ~= +0.4 in the default scene).
-        const double x = -0.50 + 1.00 * u01(s);  // [-0.50, +0.50]
-        const double y =  0.40 + 1.20 * u01(s);  // [0.40, 1.60]
-        const double z =  0.41;                  // slightly in front of rack face
+        // Front-center ignition zone (keep narrow so the hotspot does not appear on side edges).
+        const double x = -0.12 + 0.24 * u01(s);  // [-0.12, +0.12]
+        const double y =  0.55 + 0.90 * u01(s);  // [0.55, 1.45]
+        const double z =  0.59;                  // fixed front face band
 
         hotspot_pos_m_ = {x, y, z};
 

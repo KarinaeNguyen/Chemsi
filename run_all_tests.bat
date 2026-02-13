@@ -32,7 +32,8 @@ echo.
 echo.
 echo [3/3] Running Surrogate Model Tests (Phase 9E)...
 echo ========================================
-"d:\Chemsi\.venv\Scripts\python.exe" -m unittest python_interface\test_surrogate_model.py
+cd /d d:\Chemsi
+"d:\Chemsi\.venv\Scripts\python.exe" -m unittest python_interface.test_surrogate_model
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Surrogate model tests FAILED!
