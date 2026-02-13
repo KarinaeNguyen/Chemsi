@@ -1,0 +1,413 @@
+# -*- coding: utf-8 -*-
+"""
+BuildRack.FCMacro — Integrity-safe Server Rack (CAE/FEA-ready)
+
+This version fixes all issues shown in your logs:
+  ✅ Never deletes Origin (prevents "No document object found with name 'Origin'")
+  ✅ Deletes only the macro-created container (safe reruns)
+  ✅ make_hollow_tube accepts t=... (fixes unexpected keyword argument 't')
+  ✅ Beams do NOT overlap posts (major cause of BOPAlgo SelfIntersect)
+  ✅ CAE export path never hard-crashes the macro
+  ✅ Optional STEP export (ISO 10303) + optional STL export
+
+Recommended CAE settings:
+  - SETTINGS["include_servers"] = False
+  - SETTINGS["export_step"] = True
+  - Prefer STEP as the ISO handoff format
+
+Run:
+  - FreeCAD GUI: Macro → Execute
+  - Headless: freecadcmd BuildRack.FCMacro
+"""
+
+import FreeCAD as App
+import Part
+import random
+import os
+
+GUI = bool(getattr(App, "GuiUp", False))
+if GUI:
+    import FreeCADGui as Gui
+
+# ================== SETTINGS ==================
+SETTINGS = {
+    "seed": 1,
+    "include_servers": True,
+    "export_step": True,
+    "export_stl": False,
+    "export_dir": os.path.expanduser("~/ProRack_exports"),
+
+    # STL tessellation if enabled
+    "stl_linear_deflection": 0.7,
+    "stl_angular_deflection": 0.25,
+}
+
+# ================== PARAMETERS (mm) ==================
+P = {
+    "h": 2000, "w": 600, "d": 1000,
+    "profile": 45,
+    "thick": 2.5,
+    "u_pitch": 44.45,
+    "panel_thick": 4.0,
+    "rail_setback": 60,
+    "server_face": 483,
+    "server_body": 445,
+    "rail_gap": 450,
+
+    # fillets (keep modest for BOP robustness)
+    "outer_fillet": 2.0,
+    "inner_fillet": 1.0,
+    "brace_fillet": 2.0,
+    "server_fillet": 1.0,
+    "rail_fillet": 1.0,
+}
+
+DOC_NAME = "ProRack_Level7_Mechanical"
+ROOT_NAME = "RACK_ROOT"    # only this gets deleted on rerun
+
+# ================== DOC SETUP (SAFE) ==================
+def get_or_create_doc(name: str):
+    try:
+        d = App.getDocument(name)
+    except Exception:
+        d = App.newDocument(name)
+    App.setActiveDocument(d.Name)
+    App.ActiveDocument = d
+    return d
+
+
+doc = get_or_create_doc(DOC_NAME)
+
+# Delete only the macro root container (never touch Origin)
+old_root = doc.getObject(ROOT_NAME)
+if old_root:
+    try:
+        doc.removeObject(old_root.Name)
+    except Exception:
+        pass
+
+rack_root = doc.addObject("App::Part", ROOT_NAME)
+random.seed(int(SETTINGS["seed"]))
+
+# ================== VISUAL HELPERS ==================
+def set_view(obj, color=(0.75, 0.76, 0.78), transparency=None):
+    if not GUI:
+        return
+    try:
+        obj.ViewObject.ShapeColor = color
+        if transparency is not None:
+            obj.ViewObject.Transparency = transparency
+    except Exception:
+        pass
+
+
+def add_feature(parent, name: str, shape, color=(0.75, 0.76, 0.78), transparency=None):
+    obj = doc.addObject("Part::Feature", name)
+    obj.Shape = shape
+    set_view(obj, color=color, transparency=transparency)
+    parent.addObject(obj)
+    return obj
+
+# ================== GEOMETRY HELPERS ==================
+def _axis_alignment(edge, axis: str) -> float:
+    try:
+        p1 = edge.Vertexes[0].Point
+        p2 = edge.Vertexes[-1].Point
+    except Exception:
+        return 0.0
+
+    dx = p2.x - p1.x
+    dy = p2.y - p1.y
+    dz = p2.z - p1.z
+    length = (dx * dx + dy * dy + dz * dz) ** 0.5
+    if length <= 1e-9:
+        return 0.0
+    if axis == "X":
+        return abs(dx) / length
+    if axis == "Y":
+        return abs(dy) / length
+    return abs(dz) / length
+
+
+def safe_fillet(shape, radius: float, prefer_axis: str = None, threshold: float = 0.985):
+    if radius is None or radius <= 0:
+        return shape
+    edges = list(getattr(shape, "Edges", []))
+    if not edges:
+        return shape
+
+    if prefer_axis in ("X", "Y", "Z"):
+        cand = [e for e in edges if _axis_alignment(e, prefer_axis) >= threshold]
+        if cand:
+            try:
+                return shape.makeFillet(radius, cand)
+            except Exception:
+                pass
+
+    try:
+        return shape.makeFillet(radius, edges)
+    except Exception:
+        return shape
+
+
+def extrusion_axis(l, w, h) -> str:
+    if l >= w and l >= h:
+        return "X"
+    if w >= l and w >= h:
+        return "Y"
+    return "Z"
+
+# ================== PART BUILDERS ==================
+def make_hollow_tube(parent, name, l, w, h, x, y, z, t=None, **kwargs):
+    """
+    Hollow tube with robust fillets.
+    Accepts t=... (wall thickness) to avoid keyword-arg crashes.
+    """
+    wall = float(t) if t is not None else float(P["thick"])
+    l, w, h = float(l), float(w), float(h)
+
+    if l <= 2 * wall or w <= 2 * wall or h <= 2 * wall:
+        raise ValueError(f"{name}: invalid dims ({l},{w},{h}) with wall={wall}")
+
+    axis = extrusion_axis(l, w, h)
+
+    outer_raw = Part.makeBox(l, w, h)
+    outer = safe_fillet(outer_raw, float(P["outer_fillet"]), prefer_axis=axis)
+
+    # extend inner cut to avoid end slivers
+    if axis == "Z":
+        inner_raw = Part.makeBox(l - 2 * wall, w - 2 * wall, h + 20)
+        inner_raw.translate(App.Vector(wall, wall, -10))
+    elif axis == "X":
+        inner_raw = Part.makeBox(l + 20, w - 2 * wall, h - 2 * wall)
+        inner_raw.translate(App.Vector(-10, wall, wall))
+    else:
+        inner_raw = Part.makeBox(l - 2 * wall, w + 20, h - 2 * wall)
+        inner_raw.translate(App.Vector(wall, -10, wall))
+
+    inner = safe_fillet(inner_raw, float(P["inner_fillet"]), prefer_axis=axis)
+    final_shape = outer.cut(inner)
+    final_shape.Placement = App.Placement(App.Vector(x, y, z), App.Rotation())
+
+    return add_feature(parent, name, final_shape, color=(0.75, 0.76, 0.78))
+
+
+# Backward-compatible alias
+make_filleted_tube = make_hollow_tube
+
+
+def make_side_brace(parent, name, z_height, side="Left"):
+    brace = Part.makeBox(15, P["d"] - (2 * P["profile"]), 30)
+    brace = safe_fillet(brace, float(P["brace_fillet"]), prefer_axis="Y")
+    x = P["profile"] if side == "Left" else P["w"] - P["profile"] - 15
+    brace.Placement = App.Placement(App.Vector(x, P["profile"], z_height), App.Rotation())
+    return add_feature(parent, name, brace, color=(0.2, 0.2, 0.2))
+
+
+def make_width_adapter(parent, name, x, y, z, width):
+    bracket = Part.makeBox(width, 40, 40)
+    bracket = safe_fillet(bracket, float(P["brace_fillet"]), prefer_axis="X")
+    bracket.Placement = App.Placement(App.Vector(x, y, z), App.Rotation())
+    return add_feature(parent, name, bracket, color=(0.2, 0.2, 0.2))
+
+
+def make_internal_rail(parent, name, x, y):
+    rail_w, rail_d = 30, 40
+    rail_h = P["h"] - 100
+
+    stock = Part.makeBox(rail_w, rail_d, rail_h)
+    cutout = Part.makeBox(rail_w - P["thick"], rail_d - P["thick"], rail_h + 10)
+    cutout.translate(App.Vector(P["thick"], P["thick"], -5))
+    rail = stock.cut(cutout)
+
+    holes = []
+    for i in range(0, 42, 2):  # every 2U
+        z = 50 + (i * P["u_pitch"])
+        hole = Part.makeCylinder(3.5, 20)
+        hole.rotate(App.Vector(0, 0, 0), App.Vector(0, 1, 0), 90)
+        hole.translate(App.Vector(-5, 20, z + 15))
+        holes.append(hole)
+
+    if holes:
+        rail = rail.cut(Part.makeCompound(holes))
+
+    rail = safe_fillet(rail, float(P["rail_fillet"]), prefer_axis="Z")
+    rail.Placement = App.Placement(App.Vector(x, y, 50), App.Rotation())
+    return add_feature(parent, name, rail, color=(0.85, 0.85, 0.85))
+
+
+def make_panel(parent, name, w, d, h, x, y, z, material):
+    panel = Part.makeBox(w, d, h)
+    panel.Placement = App.Placement(App.Vector(x, y, z), App.Rotation())
+    if material == "Glass":
+        return add_feature(parent, name, panel, color=(0.6, 0.8, 0.9), transparency=70)
+    return add_feature(parent, name, panel, color=(0.75, 0.76, 0.78))
+
+
+def make_server(parent, name, u_height, u_pos):
+    h = (u_height * P["u_pitch"]) - 2
+    w_body = P["server_body"]
+    d_body = 700
+
+    body = Part.makeBox(w_body, d_body, h)
+    bezel = Part.makeBox(P["server_face"], 15, h)
+
+    offset = (P["server_face"] - w_body) / 2
+    bezel.translate(App.Vector(-offset, -15, 0))
+    server = body.fuse(bezel)
+
+    server = safe_fillet(server, float(P["server_fillet"]), prefer_axis="X")
+
+    pos_x = (P["w"] - w_body) / 2
+    pos_y = P["rail_setback"]
+    pos_z = 50 + (u_pos * P["u_pitch"]) + 1
+    server.Placement = App.Placement(App.Vector(pos_x, pos_y, pos_z), App.Rotation())
+
+    c = 0.2 + random.random() * 0.1
+    return add_feature(parent, name, server, color=(0.2, c, 0.25))
+
+# ================== BUILD GROUPS ==================
+frame_grp = doc.addObject("App::Part", "01_Structural_Frame")
+rails_grp = doc.addObject("App::Part", "02_Internal_Rails")
+panel_grp = doc.addObject("App::Part", "03_Glass_Panels")
+equip_grp = doc.addObject("App::Part", "04_IT_Equipment")
+
+rack_root.addObject(frame_grp)
+rack_root.addObject(rails_grp)
+rack_root.addObject(panel_grp)
+rack_root.addObject(equip_grp)
+
+s = P["profile"]
+
+# ================== FRAME ==================
+posts = [
+    make_hollow_tube(frame_grp, "Post_FL", s, s, P["h"], 0, 0, 0),
+    make_hollow_tube(frame_grp, "Post_FR", s, s, P["h"], P["w"] - s, 0, 0),
+    make_hollow_tube(frame_grp, "Post_RL", s, s, P["h"], 0, P["d"] - s, 0),
+    make_hollow_tube(frame_grp, "Post_RR", s, s, P["h"], P["w"] - s, P["d"] - s, 0),
+]
+
+# IMPORTANT: beams run BETWEEN posts => no overlap => far fewer self-intersections
+beams = [
+    # Front
+    make_hollow_tube(frame_grp, "Beam_Top_Front", P["w"] - 2 * s, s, s, s, 0, P["h"] - s),
+    make_hollow_tube(frame_grp, "Beam_Bot_Front", P["w"] - 2 * s, s, s, s, 0, 0),
+
+    # Rear
+    make_hollow_tube(frame_grp, "Beam_Top_Rear", P["w"] - 2 * s, s, s, s, P["d"] - s, P["h"] - s),
+    make_hollow_tube(frame_grp, "Beam_Bot_Rear", P["w"] - 2 * s, s, s, s, P["d"] - s, 0),
+
+    # Left
+    make_hollow_tube(frame_grp, "Beam_Top_Left", s, P["d"] - 2 * s, s, 0, s, P["h"] - s),
+    make_hollow_tube(frame_grp, "Beam_Bot_Left", s, P["d"] - 2 * s, s, 0, s, 0),
+
+    # Right
+    make_hollow_tube(frame_grp, "Beam_Top_Right", s, P["d"] - 2 * s, s, P["w"] - s, s, P["h"] - s),
+    make_hollow_tube(frame_grp, "Beam_Bot_Right", s, P["d"] - 2 * s, s, P["w"] - s, s, 0),
+]
+
+# Braces & adapters
+side_braces = []
+width_adapters = []
+for h_pos in [200, 1000, 1800]:
+    side_braces.append(make_side_brace(frame_grp, f"SideBrace_L_{h_pos}", h_pos, "Left"))
+    side_braces.append(make_side_brace(frame_grp, f"SideBrace_R_{h_pos}", h_pos, "Right"))
+
+    width_adapters.append(make_width_adapter(frame_grp, f"Mnt_FL_{h_pos}", s, P["rail_setback"], h_pos, 30))
+    width_adapters.append(make_width_adapter(frame_grp, f"Mnt_RL_{h_pos}", s, P["d"] - P["rail_setback"] - 40, h_pos, 30))
+    width_adapters.append(make_width_adapter(frame_grp, f"Mnt_FR_{h_pos}", P["w"] - s - 30, P["rail_setback"], h_pos, 30))
+    width_adapters.append(make_width_adapter(frame_grp, f"Mnt_RR_{h_pos}", P["w"] - s - 30, P["d"] - P["rail_setback"] - 40, h_pos, 30))
+
+# ================== RAILS ==================
+sb = P["rail_setback"]
+left_x = (P["w"] - P["rail_gap"]) / 2 - 30
+right_x = (P["w"] + P["rail_gap"]) / 2
+rails = [
+    make_internal_rail(rails_grp, "Rail_FL", left_x, sb),
+    make_internal_rail(rails_grp, "Rail_FR", right_x, sb),
+    make_internal_rail(rails_grp, "Rail_RL", left_x, P["d"] - sb - 40),
+    make_internal_rail(rails_grp, "Rail_RR", right_x, P["d"] - sb - 40),
+]
+
+# ================== PANELS ==================
+pt = P["panel_thick"]
+panels = [
+    make_panel(panel_grp, "Panel_Top", P["w"], P["d"], pt, 0, 0, P["h"], "Aluminum"),
+    make_panel(panel_grp, "Panel_Bottom", P["w"], P["d"], pt, 0, 0, -pt, "Aluminum"),
+    make_panel(panel_grp, "Glass_Left", pt, P["d"] - 2 * s, P["h"], 0, s, 0, "Glass"),
+    make_panel(panel_grp, "Glass_Right", pt, P["d"] - 2 * s, P["h"], P["w"] - pt, s, 0, "Glass"),
+]
+
+# ================== SERVERS ==================
+servers = []
+if SETTINGS["include_servers"]:
+    current_u = 0
+    while current_u < 40:
+        size = random.choice([1, 1, 2, 2, 4])
+        if random.random() > 0.3:
+            servers.append(make_server(equip_grp, f"Server_{current_u}U", size, current_u))
+            current_u += size
+        else:
+            current_u += 1
+
+doc.recompute()
+
+# ================== CAE EXPORT (OPTIMIZED) ==================
+export_objs = posts + beams + side_braces + width_adapters + rails + panels + servers
+
+# 1) Hide individual components in GUI (clean export view)
+if GUI:
+    for obj in export_objs:
+        try:
+            obj.ViewObject.Visibility = False
+        except Exception:
+            pass
+
+# 2) Create assembly compound (robust for export/interoperability)
+compound_shape = Part.makeCompound([o.Shape for o in export_objs if hasattr(o, "Shape")])
+
+cae_obj = doc.addObject("Part::Feature", "CAE_EXPORT_ASSEMBLY")
+cae_obj.Shape = compound_shape
+set_view(cae_obj, color=(0.7, 0.7, 0.75))
+rack_root.addObject(cae_obj)
+
+doc.recompute()
+
+# 3) STEP export (ISO 10303)
+os.makedirs(SETTINGS["export_dir"], exist_ok=True)
+if SETTINGS["export_step"]:
+    step_path = os.path.join(SETTINGS["export_dir"], "ProRack_Level7_Assembly.step")
+    try:
+        Part.export([cae_obj], step_path)
+        print(f"✅ Wrote STEP Assembly: {step_path}")
+    except Exception as exc:
+        print(f"⚠️ STEP export failed: {exc}")
+
+# 4) STL export (optional)
+if SETTINGS["export_stl"]:
+    try:
+        import MeshPart
+
+        print("⏳ Meshing for STL (this may take a moment)...")
+        mesh = MeshPart.meshFromShape(
+            Shape=compound_shape,
+            LinearDeflection=float(SETTINGS["stl_linear_deflection"]),
+            AngularDeflection=float(SETTINGS["stl_angular_deflection"]),
+            Relative=False,
+        )
+        stl_path = os.path.join(SETTINGS["export_dir"], "ProRack_Level7_Mesh.stl")
+        mesh.write(stl_path)
+        print(f"✅ Wrote STL Mesh: {stl_path}")
+    except Exception as exc:
+        print(f"⚠️ STL export failed: {exc}")
+
+# ================== VIEW ==================
+if GUI:
+    try:
+        Gui.SendMsgToActiveView("ViewFit")
+        Gui.activeDocument().activeView().viewIsometric()
+    except Exception:
+        pass
+
+print(f"🎉 SUCCESS! Rack generated with {len(servers)} servers.")
+print(f"   Files saved to: {SETTINGS['export_dir']}")

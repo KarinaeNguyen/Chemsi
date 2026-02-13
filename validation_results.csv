@@ -1,5 +1,0 @@
-Scenario,Predicted,Literature,Error_%,Lower_Bound,Upper_Bound,Within_Range,Units
-ISO 9705 Room Corner Test,724.983,1023.15,4.11151,973.15,1073.15,YES,K
-NIST Data Center Rack Fire,71360.1,75000,4.85314,60000,90000,YES,W
-Suppression Effectiveness,0.797657,0.7,13.951,0.6,0.8,YES,fraction
-Temperature Dynamics,272.23,300,9.2567,200,400,YES,K

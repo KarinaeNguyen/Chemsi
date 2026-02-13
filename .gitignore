@@ -1,25 +1,62 @@
-﻿# Build output
-build*/
-out/
-**/build*/
-**/out/
-
-# CMake/Ninja artifacts
-CMakeCache.txt
+# Build directory
+build-*/
+Build/
+build/
 CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
 *.ninja
-.ninja_*
+*.ninja_deps
+*.ninja_log
+compile_commands.json
+CTestTestfile.cmake
 
-# MSVC / Visual Studio
-.vs/
-*.sln
-*.vcxproj*
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib  
+*.a
+*.lib
 *.pdb
-*.ilk
 *.obj
+*.o
 
-# Backup files
-*.bak
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+.pytest_cache/
 
-# Third-party deps (if generated)
-third_party/
+# IDE & Editors
+.vscode/settings.json
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+# Generated files
+generated/
+*.log
+*.tmp
+
+# Test outputs (keep templates, archive actual results)
+numeric_*.txt
+ni_run*.txt
+
+# User-specific config
+imgui.ini
+.DS_Store
+Thumbs.db
+
+# Archive directory
+archive/
+
+# CMake temporary
+_deps/
+cmake-build-*/

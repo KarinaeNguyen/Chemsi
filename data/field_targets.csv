@@ -1,0 +1,31 @@
+scenario_id,source,target_type,target_value,lower_bound,upper_bound,units,notes
+SC001,SFPE-Handbook-Ed5,peak_HUL_temp,650,620,680,K,Small office fire no suppression
+SC001,SFPE-Handbook-Ed5,final_O2_concentration,0.15,0.14,0.16,fraction,O2 at 600s
+SC002,SFPE-Handbook-Ed5,suppression_time,45,35,55,s,Early suppression effectiveness
+SC002,SFPE-Handbook-Ed5,peak_HRR,400,350,450,kW,Peak before suppression
+SC003,NIST-RSE-2008,peak_HUL_temp,873,850,900,K,Medium office flashover scenario
+SC003,NIST-RSE-2008,time_to_flashover,320,290,350,s,Time to flashover
+SC004,NIST-RSE-2008,peak_HUL_temp,725,700,750,K,Ventilation-limited scenario
+SC004,NIST-RSE-2008,final_O2_concentration,0.12,0.10,0.14,fraction,Low O2 concentration
+SC005,Experimental-Lab,suppression_time,120,100,140,s,Retail suppression timing
+SC005,Experimental-Lab,peak_HRR,1200,1100,1300,kW,Peak before suppression
+SC006,Field-Incident-Report,peak_HRR,3000,2700,3300,kW,Large warehouse fire
+SC006,Field-Incident-Report,time_to_peak_HRR,420,380,460,s,Time to fully developed
+SC007,Field-Incident-Report,peak_HRR,4500,4200,4800,kW,High ventilation warehouse
+SC007,Field-Incident-Report,peak_HUL_temp,950,920,980,K,Peak upper layer temp
+SC008,NIST-Multiroom-2012,peak_HUL_temp,820,780,860,K,Multi-room residence
+SC008,NIST-Multiroom-2012,time_to_peak_HRR,280,250,310,s,Time to peak in origin room
+SC009,Experimental-Lab,suppression_time,180,160,200,s,Multi-room suppression
+SC009,Experimental-Lab,final_O2_concentration,0.16,0.15,0.17,fraction,O2 after suppression
+SC010,Field-Incident-Report,peak_HRR,5000,4500,5500,kW,Industrial high fire load
+SC010,Field-Incident-Report,peak_HUL_temp,1100,1050,1150,K,Extreme temperature scenario
+SC011,ISO-9705-1993,peak_HRR,600,550,650,kW,Small retail rapid suppression
+SC011,ISO-9705-1993,suppression_time,90,75,105,s,Suppression effectiveness
+SC012,SFPE-Handbook-Ed5,peak_HUL_temp,680,650,710,K,Bedroom typical fuel load
+SC012,SFPE-Handbook-Ed5,time_to_flashover,420,390,450,s,Time to flashover
+SC013,Experimental-Lab,peak_HUL_temp,480,450,510,K,Kitchen ventilation hood active
+SC013,Experimental-Lab,final_O2_concentration,0.19,0.18,0.20,fraction,High ventilation O2
+SC014,Experimental-Lab,suppression_time,240,210,270,s,Delayed suppression server room
+SC014,Experimental-Lab,peak_HRR,800,750,850,kW,Peak before suppression
+SC015,ISO-9705-1993,peak_HRR,2000,1850,2150,kW,Lab chemical fuel load
+SC015,ISO-9705-1993,peak_HUL_temp,890,860,920,K,High temperature scenario
